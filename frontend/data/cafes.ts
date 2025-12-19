@@ -1,0 +1,50 @@
+export const DUMMY_CAFES = [
+    {
+        id: "1",
+        name: "Brew Haven",
+        address: "123 Coffee St",
+        city: "San Francisco",
+        latitude: 37.7749,
+        longitude: -122.4194,
+        rating: 4.8,
+        distance: "0.5 km",
+        distanceNum: 0.5,
+        occupancy: "Low",
+        seats: 45,
+        amenities: ["WiFi", "Power Outlets", "Outdoor Seating"],
+        image: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?q=80&w=1000",
+        hasStory: true
+    },
+    {
+        id: "2",
+        name: "The Grind",
+        address: "456 Espresso Ave",
+        city: "San Francisco",
+        latitude: 37.7849,
+        longitude: -122.4294,
+        rating: 4.5,
+        distance: "1.2 km",
+        distanceNum: 1.2,
+        occupancy: "Moderate",
+        seats: 30,
+        amenities: ["WiFi", "Quiet Zone"],
+        image: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?q=80&w=1000",
+        hasStory: false
+    },
+    {
+        id: "3",
+        name: "Morning Brew",
+        address: "789 Latte Blvd",
+        city: "Oakland",
+        latitude: 37.8049,
+        longitude: -122.2711,
+        rating: 4.2,
+        distance: "5.0 km",
+        distanceNum: 5.0,
+        occupancy: "High",
+        seats: 20,
+        amenities: ["Pet Friendly", "Outdoor Seating"],
+        image: "https://images.unsplash.com/photo-1511920170033-f8396924c348?q=80&w=1000",
+        hasStory: true
+    }
+];

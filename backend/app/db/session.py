@@ -21,7 +21,6 @@ if not all([DB_HOST, DB_NAME, DB_USER, DB_SECRET_ARN]):
     )
 
 
-
 def get_db_password() -> str:
     sm = boto3.client("secretsmanager")
     resp = sm.get_secret_value(SecretId=DB_SECRET_ARN)
@@ -31,7 +30,6 @@ def get_db_password() -> str:
     data = json.loads(secret_str)
     # This structure is what RDS + from_generated_secret() creates
     return data["password"]
-
 
 
 DB_PASSWORD = get_db_password()
@@ -48,6 +46,7 @@ engine = create_engine(
 
 # create tables if they don't exist
 print("Creating tables if not exist...")
+# Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

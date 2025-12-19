@@ -1,10 +1,13 @@
+import os
 from aws_cdk import (
-    # Duration,
+    Duration,
     Stack,
     aws_lambda as _lambda,
     aws_apigateway as apigw,
     aws_rds as rds,
-    aws_ec2 as ec2
+    aws_ec2 as ec2,
+    aws_s3 as s3,
+    RemovalPolicy
     # aws_sqs as sqs,
 )
 from constructs import Construct
@@ -24,10 +27,12 @@ class InfraStack(Stack):
         cafe_lambda = PythonFunction(
             self, "cafe_lambda",
             runtime = _lambda.Runtime.PYTHON_3_11,
-            entry = "../backend",
+            entry = os.path.join(os.path.dirname(__file__), "../../backend"),
             index = "lambda_handler.py",
             handler = "handler",
-            vpc = vpc               #lambda in the same vpc as DB
+            vpc = vpc,               #lambda in the same vpc as DB
+            timeout = Duration.seconds(30),  # Increase timeout for DB connection
+            memory_size = 512  # More memory = faster cold starts
             )
 
 
@@ -68,7 +73,7 @@ class InfraStack(Stack):
             ),
 
             publicly_accessible = False,
-            deletion_protection = True,   
+            deletion_protection = False,   
         )
 
 
@@ -85,3 +90,18 @@ class InfraStack(Stack):
             cafe_lambda.add_environment("DB_SECRET_ARN",value=db_instance.secret.secret_arn)
             #allow lambda to read the secret
             db_instance.secret.grant_read(cafe_lambda)
+
+
+        #create a s3 bucket to store the photos of the cafes
+        cafe_photos_bucket = s3.Bucket(
+            self, 
+            "cafe-photos-bucket", 
+            versioned=True, 
+            removal_policy=RemovalPolicy.DESTROY
+        )
+        #grand lambda permission to write to the s3 bucket
+        cafe_photos_bucket.grant_write(cafe_lambda)
+        cafe_photos_bucket.grant_read(cafe_lambda)
+
+        cafe_lambda.add_environment("CAFE_PHOTOS_BUCKET",value=cafe_photos_bucket.bucket_name)
+
