@@ -16,40 +16,51 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.db.base import Base
 
+# --------------------------- CAFE MODEL ---------------------------
+from sqlalchemy import Column, String, Text, Integer, Float, Boolean, DateTime, func, text
+from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import ARRAY
+import uuid
 
 class Cafe(Base):
-    __tablename__ = "cafes" # assigned name for the table in the database
+    __tablename__ = "cafes"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4) # you dont send it in the request
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
-    cognito_sub = Column(String, nullable=False) #username/ID in cognito
+    cognito_sub = Column(String, nullable=False, index=True)
 
     name = Column(String, nullable=False)
     description = Column(Text)
     phone_number = Column(String)
+
     address = Column(Text, nullable=False)
     city = Column(String, nullable=False)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
-    
-    cafe_photos = Column(ARRAY(String), nullable=True)
-    menu_photos = Column(ARRAY(String), nullable=True)
-    menu_link = Column(String, nullable=True)
-    website_link = Column(String, nullable=True)
-    instagram_url = Column(Text, nullable=True)
 
-    total_tables = Column(Integer, nullable=True)
-    occupancy_capacity = Column(Integer, nullable=True)
-    occupancy_level = Column(Integer, nullable=True)
+    cafe_photos = Column(ARRAY(String), nullable=False, server_default="{}")
+    menu_photos = Column(ARRAY(String), nullable=False, server_default="{}")
+
+    menu_link = Column(String)
+    website_link = Column(String)
+    instagram_url = Column(Text)
+
+    two_tables = Column(Integer)
+    four_tables = Column(Integer)
+    table_config = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
 
     amenities = Column(ARRAY(String), nullable=False, server_default="{}")
-    avg_rating = Column(Float, nullable=True)
-    working_hours = Column(JSONB, nullable=False, default=lambda: {})
+
+    avg_rating = Column(Float)
+
+    working_hours = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    onboarding_completed = Column(Boolean, nullable=False, server_default=text("false"))
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
+# --------------------------- USER MODEL ---------------------------
 class User(Base):
     __tablename__ = "users"
 
@@ -81,41 +92,53 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
+# # --------------------------- LIVE UPDATES MODEL ---------------------------
 # class LiveUpdates(Base):
 #     __tablename__ = 'liveUpdates'
 
 #     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
 #     cafe_id = Column(UUID(as_uuid=True), nullable=False)
 #     user_id = Column(UUID(as_uuid=True), nullable=False)
+
 #     image_url = Column(Text, nullable=False)
-#     # tags = Column(ARRAY(String), nullable=False, server_default="{}")
+
 #     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 #     expires_at = Column(created_at + timedelta(days=1), nullable=False)
 
 
+# # --------------------------- REVIEWS MODEL ---------------------------
 # class Reviews(Base):
 #     __tablename__ = 'reviews'
 
 #     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
 #     cafe_id = Column(UUID(as_uuid=True), nullable=False)
 #     user_id = Column(UUID(as_uuid=True), nullable=False)
 #     rating = Column(Integer, nullable=False)
 #     review_text = Column(Text, nullable=False)
+
 #     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 #     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
-# class Checkins(Base):
-#     __tablename__ = 'checkins'
+# --------------------------- OCCUPANCY MODEL ---------------------------
+class Occupancy(Base):
+    __tablename__ = 'occupancy'
 
-#     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-#     cafe_id = Column(UUID(as_uuid=True), nullable=False)
-#     user_id = Column(UUID(as_uuid=True), nullable=False)
-#     source = Column(String, nullable=False)
-#     checkin_time = Column(DateTime(timezone=True), nullable=False)
-#     checkout_time = Column(DateTime(timezone=True), nullable=False)
-#     discount_used = Column(Boolean, nullable=False)
-#     discount_code = Column(String, nullable=True)
-#     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-#     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
+    cafe_id = Column(UUID(as_uuid=True), nullable=False)
+
+    two_tables = Column(Integer, nullable=False)
+    four_tables = Column(Integer, nullable=False)
+    total_seats = Column(Integer, nullable=False)
+
+    two_tables_occupied = Column(Integer, nullable=False)
+    four_tables_occupied = Column(Integer, nullable=False)
+
+    two_seats_occupied = Column(Integer, nullable=False)
+    four_seats_occupied = Column(Integer, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

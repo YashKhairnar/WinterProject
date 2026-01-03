@@ -39,8 +39,7 @@ def save_to_s3(file_content: bytes, filename: str, category: Literal['cafe_photo
         Bucket=bucket_name,
         Key=key,
         Body=file_content,
-        ContentType=content_type,
-        ACL='public-read'  # Make file publicly accessible
+        ContentType=content_type
     )
     
     # Return public URL

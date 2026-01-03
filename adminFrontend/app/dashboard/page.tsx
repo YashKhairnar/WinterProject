@@ -1,102 +1,140 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuthProtection } from "../hooks/useAuthProtection";
 
-function DiscountCoupon({ percent, code }: { percent: string; code: string }) {
-    const [flipped, setFlipped] = useState(false);
-
-    if (!percent) return <span className="text-gray-400 text-xs">-</span>;
-
-    return (
-        <div
-            onClick={() => setFlipped(!flipped)}
-            className="group relative w-32 h-10 cursor-pointer"
-            style={{ perspective: "1000px" }}
-        >
-            <div
-                className="relative w-full h-full duration-500 transition-transform"
-                style={{
-                    transformStyle: "preserve-3d",
-                    transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)"
-                }}
-            >
-                {/* Front - The "Coupon" Look */}
-                <div
-                    className="absolute inset-0 bg-yellow-100 border-2 border-dashed border-yellow-400 rounded-lg flex items-center justify-between px-3 shadow-sm"
-                    style={{ backfaceVisibility: "hidden" }}
-                >
-                    {/* Left Cutout */}
-                    <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full border-r border-yellow-300" />
-
-                    <div className="flex flex-col items-center w-full">
-                        <span className="text-[10px] text-yellow-600 font-bold uppercase tracking-wider">Discount</span>
-                        <span className="text-yellow-800 font-black text-sm">{percent}</span>
-                    </div>
-
-                    {/* Right Cutout */}
-                    <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full border-l border-yellow-300" />
-                </div>
-
-                {/* Back - The "Code" Reveal */}
-                <div
-                    className="absolute inset-0 bg-gray-900 border-2 border-gray-700 rounded-lg flex items-center justify-center shadow-sm"
-                    style={{
-                        backfaceVisibility: "hidden",
-                        transform: "rotateY(180deg)"
-                    }}
-                >
-                    <div className="text-center">
-                        <span className="text-gray-400 text-[8px] uppercase tracking-widest block mb-0.5">Code</span>
-                        <span className="text-white font-mono text-xs font-bold tracking-wider">
-                            {code || "NO_CODE"}
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
 export default function DashboardPage() {
-    const { isAuthenticated, loading } = useAuthProtection();
-
-    // Hooks must be called unconditionally at the top level
-    const [activeTab, setActiveTab] = useState<'seating' | 'reservations' | 'checkins'>('seating');
+    const { isAuthenticated, loading, userId } = useAuthProtection();
+    const [cafeId, setCafeId] = useState<string | null>(null);
     const [capacity, setCapacity] = useState(0);
+    const [tables, setTables] = useState<{ id: number; seats: number; size: 2 | 4 }[]>([]);
     const [selectedTable, setSelectedTable] = useState<number | null>(null);
+    const [selectedTableSize, setSelectedTableSize] = useState<2 | 4>(4); // For adding new tables
+    const [profileCompleted, setProfileCompleted] = useState(false);
+    const [baseCounts, setBaseCounts] = useState<{ two: number; four: number } | null>(null);
+    const apiURL = process.env.NEXT_PUBLIC_API_URL;
 
-    // Check-in State
-    type CheckIn = {
-        id: number;
-        name: string;
-        guests: number;
-        time: string;
-        source: 'manual' | 'reservation';
-        date: string; // YYYY-MM-DD
-        discountPercent: string;
-        discountCode: string;
+    // URL normalization
+    const cleanAPIURL = apiURL ? (apiURL.endsWith("/") ? apiURL.slice(0, -1) : apiURL) : "";
+
+    // Fetch cafe_id on load
+    useEffect(() => {
+        if (isAuthenticated && userId) {
+            console.log("DEBUG: Dashboard fetching cafe for user:", userId);
+            fetchCafeDetails();
+        }
+    }, [isAuthenticated, userId]);
+
+    // Fetch cafe details
+    const fetchCafeDetails = async () => {
+        if (!cleanAPIURL) {
+            console.error("DEBUG: NEXT_PUBLIC_API_URL is missing");
+            return;
+        }
+        try {
+            const ownerURL = `${cleanAPIURL}/cafes/owner/${userId}`;
+            console.log("DEBUG: Dashboard fetching cafe for userId:", userId, "from URL:", ownerURL);
+            const response = await fetch(ownerURL);
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log("DEBUG: received cafe data for dashboard:", data);
+                setCafeId(data.id);
+                setProfileCompleted(data.onboarding_completed);
+                setBaseCounts({ two: data.two_tables || 0, four: data.four_tables || 0 });
+
+                // 1. If we have a saved configuration, use it
+                if (data.table_config && Array.isArray(data.table_config) && data.table_config.length > 0) {
+                    console.log("DEBUG: using saved table_config");
+                    // Ensure seats property exists if coming from backend without it
+                    const normalizedTables = data.table_config.map((t: any) => ({
+                        ...t,
+                        id: typeof t.id === 'string' ? parseInt(t.id) : t.id,
+                        seats: t.seats ?? 0
+                    }));
+                    setTables(normalizedTables);
+                    const totalCapacity = normalizedTables.reduce((acc: number, t: any) => acc + (t.size || 0), 0);
+                    setCapacity(totalCapacity);
+                }
+                // 2. Otherwise, generate a default layout from the table counts
+                else if (data.two_tables > 0 || data.four_tables > 0) {
+                    console.log("DEBUG: generating default layout from counts", { two: data.two_tables, four: data.four_tables });
+                    const generatedTables: { id: number; seats: number; size: 2 | 4 }[] = [];
+                    let tId = 1;
+
+                    // Create 2-seat tables
+                    for (let i = 0; i < (data.two_tables || 0); i++) {
+                        generatedTables.push({ id: tId++, size: 2, seats: 0 });
+                    }
+                    // Create 4-seat tables
+                    for (let i = 0; i < (data.four_tables || 0); i++) {
+                        generatedTables.push({ id: tId++, size: 4, seats: 0 });
+                    }
+
+                    setTables(generatedTables);
+                    setCapacity((data.two_tables * 2) + (data.four_tables * 4));
+                } else {
+                    console.log("DEBUG: no tables found in data");
+                }
+            } else {
+                const err = await response.text();
+                console.error("DEBUG: fetchCafeDetails failed:", response.status, err);
+            }
+        } catch (error) {
+            console.error("DEBUG: Error fetching cafe details:", error);
+        }
     };
 
-    const [checkIns, setCheckIns] = useState<CheckIn[]>([
-        { id: 1, name: "John Doe", guests: 2, time: "09:30 AM", source: 'manual', date: new Date().toISOString().split('T')[0], discountPercent: "", discountCode: "" },
-        { id: 2, name: "Alice Smith", guests: 4, time: "10:15 AM", source: 'reservation', date: new Date().toISOString().split('T')[0], discountPercent: "10%", discountCode: "VIP_GUEST" }
-    ]);
-    const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
-    const [showWalkInModal, setShowWalkInModal] = useState(false);
-    const [walkInForm, setWalkInForm] = useState({ name: "", guests: 1, discountPercent: "", discountCode: "" });
 
-    // Mock Reservations
-    const [reservations, setReservations] = useState([
-        { id: 1, name: "Sarah Johnson", time: "12:30 PM", guests: 4, status: "pending" },
-        { id: 2, name: "Mike Chen", time: "1:00 PM", guests: 2, status: "pending" },
-        { id: 3, name: "Emma Wilson", time: "1:15 PM", guests: 3, status: "confirmed" },
-    ]);
 
-    // Mock tables grid 
-    // seats: 0-4
-    const [tables, setTables] = useState<{ id: number; seats: number }[]>([]);
+    const syncOccupancy = async (currentTables: { id: number; seats: number; size: 2 | 4 }[]) => {
+        if (!cafeId) return;
+
+        const two_tables = currentTables.filter(t => t.size === 2).length;
+        const four_tables = currentTables.filter(t => t.size === 4).length;
+
+        const two_table_seats = two_tables * 2;
+        const four_table_seats = four_tables * 4;
+
+        const two_tables_occupied = currentTables.filter(t => t.size === 2 && t.seats > 0).length;
+        const four_tables_occupied = currentTables.filter(t => t.size === 4 && t.seats > 0).length;
+
+        const two_seats_occupied = currentTables.filter(t => t.size === 2).reduce((acc, t) => acc + t.seats, 0);
+        const four_seats_occupied = currentTables.filter(t => t.size === 4).reduce((acc, t) => acc + t.seats, 0);
+
+        const payload = {
+            cafe_id: cafeId,
+            two_tables,
+            four_tables,
+            two_table_seats,
+            four_table_seats,
+            two_tables_occupied,
+            four_tables_occupied,
+            two_seats_occupied,
+            four_seats_occupied
+        };
+
+        try {
+            await fetch(`${cleanAPIURL}/occupancy`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        } catch (error) {
+            console.error("DEBUG: Error syncing occupancy:", error);
+        }
+    };
+
+
+    // Auto-sync whenever tables change
+    useEffect(() => {
+        if (cafeId && tables.length > 0) {
+            syncOccupancy(tables);
+        }
+    }, [tables, cafeId]);
+
+
 
     // Derived State
     const occupied = tables.reduce((acc, t) => acc + t.seats, 0);
@@ -106,65 +144,86 @@ export default function DashboardPage() {
     if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
     if (!isAuthenticated) return null;
 
-    const updateCapacity = (newCapacity: number) => {
-        const safeCapacity = Math.max(0, newCapacity);
-        setCapacity(safeCapacity);
+    const saveTableConfig = async (updatedTables: { id: number; seats: number; size: 2 | 4 }[]) => {
+        if (!cafeId) return;
 
-        // Sync tables
-        const tableCount = Math.ceil(safeCapacity / 4);
-        setTables(prev => {
-            const currentCount = prev.length;
-            if (tableCount > currentCount) {
-                // Add tables
-                const newTables = Array(tableCount - currentCount).fill(0).map((_, i) => ({
-                    id: currentCount + i + 1,
-                    seats: 0
-                }));
-                return [...prev, ...newTables];
-            } else if (tableCount < currentCount) {
-                // Remove tables
-                return prev.slice(0, tableCount);
-            }
-            return prev;
-        });
+        const two_tables = updatedTables.filter(t => t.size === 2).length;
+        const four_tables = updatedTables.filter(t => t.size === 4).length;
+
+        try {
+            await fetch(`${cleanAPIURL}/cafes/${cafeId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    two_tables,
+                    four_tables,
+                    table_config: updatedTables
+                })
+            });
+        } catch (error) {
+            console.error("DEBUG: Error saving table config:", error);
+        }
     };
 
-    const handleReservation = (id: number, status: string) => {
-        setReservations(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    const addTable = (size: 2 | 4) => {
+        const newTable = {
+            id: tables.length > 0 ? Math.max(...tables.map(t => t.id)) + 1 : 1,
+            seats: 0,
+            size: size
+        };
+        const updatedTables = [...tables, newTable];
+        setTables(updatedTables);
+        setCapacity(prev => prev + size);
+        saveTableConfig(updatedTables);
+    };
 
-        if (status === 'confirmed') {
-            const res = reservations.find(r => r.id === id);
-            if (res) {
-                addCheckIn(res.name, res.guests, 'reservation');
-            }
+    const removeLastTable = () => {
+        if (tables.length > 0) {
+            const lastTable = tables[tables.length - 1];
+            const updatedTables = tables.slice(0, -1);
+            setTables(updatedTables);
+            setCapacity(prev => Math.max(0, prev - lastTable.size));
+            saveTableConfig(updatedTables);
         }
     };
 
     const updateTableSeats = (tableId: number, seats: number) => {
-        setTables(prev => prev.map(t => t.id === tableId ? { ...t, seats } : t));
+        const updatedTables = tables.map(t => t.id === tableId ? { ...t, seats } : t);
+        setTables(updatedTables);
         setSelectedTable(null);
+        saveTableConfig(updatedTables);
     };
 
-    const addCheckIn = (name: string, guests: number, source: 'manual' | 'reservation', discountPercent: string = "", discountCode: string = "") => {
-        const newCheckIn: CheckIn = {
-            id: Date.now(),
-            name,
-            guests,
-            time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-            source,
-            date: new Date().toISOString().split('T')[0],
-            discountPercent,
-            discountCode
-        };
-        setCheckIns(prev => [newCheckIn, ...prev]);
+    const getTableMaxSeats = (tableId: number): number => {
+        const table = tables.find(t => t.id === tableId);
+        return table?.size || 4;
     };
 
-    const handleWalkInSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        addCheckIn(walkInForm.name, walkInForm.guests, 'manual', walkInForm.discountPercent, walkInForm.discountCode);
-        setShowWalkInModal(false);
-        setWalkInForm({ name: "", guests: 1, discountPercent: "", discountCode: "" });
+    const handleReset = () => {
+        if (!baseCounts) {
+            console.error("DEBUG: Cannot reset, baseCounts not loaded");
+            return;
+        }
+
+        console.log("DEBUG: Resetting floor plan to base counts", baseCounts);
+        const generatedTables: { id: number; seats: number; size: 2 | 4 }[] = [];
+        let tId = 1;
+
+        // Create 2-seat tables
+        for (let i = 0; i < baseCounts.two; i++) {
+            generatedTables.push({ id: tId++, size: 2, seats: 0 });
+        }
+        // Create 4-seat tables
+        for (let i = 0; i < baseCounts.four; i++) {
+            generatedTables.push({ id: tId++, size: 4, seats: 0 });
+        }
+
+        setTables(generatedTables);
+        setCapacity((baseCounts.two * 2) + (baseCounts.four * 4));
+        saveTableConfig(generatedTables);
     };
+
+
 
     return (
         <div className="flex min-h-screen bg-muted/30">
@@ -178,45 +237,14 @@ export default function DashboardPage() {
                 </div>
 
                 <nav className="space-y-2">
-                    <button
-                        onClick={() => setActiveTab('seating')}
-                        className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'seating'
-                            ? "bg-black text-white shadow-lg shadow-black/10"
-                            : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-                            }`}
-                    >
+                    <div className="px-4 py-3 rounded-lg text-sm font-medium bg-black text-white shadow-lg shadow-black/10">
                         Seating Map
-                    </button>
-
-                    <button
-                        onClick={() => setActiveTab('reservations')}
-                        className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'reservations'
-                            ? "bg-black text-white shadow-lg shadow-black/10"
-                            : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-                            }`}
-                    >
-                        Reservations
-                        {reservations.filter(r => r.status === 'pending').length > 0 && (
-                            <span className="ml-2 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
-                                {reservations.filter(r => r.status === 'pending').length}
-                            </span>
-                        )}
-                    </button>
-
-                    <button
-                        onClick={() => setActiveTab('checkins')}
-                        className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'checkins'
-                            ? "bg-black text-white shadow-lg shadow-black/10"
-                            : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-                            }`}
-                    >
-                        Daily Check-ins
-                    </button>
+                    </div>
 
                     <div className="h-px bg-gray-200 my-2" />
 
                     <Link
-                        href="/profile"
+                        href={profileCompleted ? `/profile` : `/onboarding/setup`}
                         className="block px-4 py-3 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors"
                     >
                         Cafe Profile
@@ -251,409 +279,292 @@ export default function DashboardPage() {
                 <header className="flex justify-between items-center mb-8">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight mb-1 text-gray-900">
-                            {activeTab === 'seating' ? "Seating Manager" : "Reservations"}
+                            Seating Manager
                         </h1>
                         <p className="text-muted-foreground">
-                            {activeTab === 'seating' ? "Live view of your cafe's floor plan." : "Manage booking requests."}
+                            Live view of your cafe's floor plan.
                         </p>
                     </div>
-                    {activeTab === 'seating' && (
-                        <div className="flex gap-4">
-                            <div className={`px-4 py-2 rounded-full font-semibold border ${occupancyRate > 80 ? "bg-red-500/10 border-red-500/20 text-red-500" :
-                                occupancyRate > 50 ? "bg-yellow-500/10 border-yellow-500/20 text-yellow-500" :
-                                    "bg-green-500/10 border-green-500/20 text-green-500"
-                                }`}>
-                                {occupancyRate}% Full
-                            </div>
-                            <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20" />
+                    <div className="flex gap-4">
+                        <div className={`px-4 py-2 rounded-full font-semibold border ${occupancyRate > 80 ? "bg-red-500/10 border-red-500/20 text-red-500" :
+                            occupancyRate > 50 ? "bg-yellow-500/10 border-yellow-500/20 text-yellow-500" :
+                                "bg-green-500/10 border-green-500/20 text-green-500"
+                            }`}>
+                            {occupancyRate}% Full
                         </div>
-                    )}
+                        <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20" />
+                    </div>
                 </header>
 
-                {activeTab === 'seating' ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        {/* Controls Panel */}
-                        <div className="space-y-6">
-                            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                                <h3 className="text-lg font-semibold mb-4 text-gray-900">Waitlist Limits</h3>
-                                <div className="space-y-6">
-                                    <div>
-                                        <div className="flex justify-between text-sm mb-2">
-                                            <span className="text-gray-500">Total Capacity</span>
-                                            <span className="font-bold text-gray-900">{capacity} Seats</span>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <button
-                                                onClick={() => updateCapacity(capacity - 4)}
-                                                className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-all text-gray-600"
-                                            >
-                                                -
-                                            </button>
-                                            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                                <div className="h-full bg-black" style={{ width: "100%" }} />
-                                            </div>
-                                            <button
-                                                onClick={() => updateCapacity(capacity + 4)}
-                                                className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-all text-gray-600"
-                                            >
-                                                +
-                                            </button>
-                                        </div>
-                                        <p className="text-xs text-gray-400 mt-2 text-center">Adjusts table count (4 seats/table)</p>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Controls Panel */}
+                    <div className="space-y-6">
+                        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                            <h3 className="text-lg font-semibold mb-4 text-gray-900">Seating Limits</h3>
+                            <div className="space-y-6">
+                                <div>
+                                    <div className="flex justify-between text-sm mb-2">
+                                        <span className="text-gray-500">Add Tables</span>
+                                        <span className="font-bold text-gray-900">{capacity} Seats Total</span>
                                     </div>
 
-                                    <div>
-                                        <div className="flex justify-between text-sm mb-4">
-                                            <span className="text-gray-500">Current Metrics</span>
-                                            <span className="font-bold text-gray-900">Live</span>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-4 mb-4">
-                                            <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                                                <div className="text-xs text-gray-500 mb-1">Guests</div>
-                                                <div className="text-xl font-bold text-gray-900">{occupied}</div>
-                                            </div>
-                                            <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                                                <div className="text-xs text-gray-500 mb-1">Tables In Use</div>
-                                                <div className="text-xl font-bold text-gray-900">
-                                                    {tables.filter(t => t.seats > 0).length} <span className="text-gray-400 text-sm font-normal">/ {tables.length}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-3 opacity-50 cursor-not-allowed" title="Update by clicking tables">
-                                            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                                <div className="h-full bg-blue-600" style={{ width: `${occupancyRate}%` }} />
-                                            </div>
-                                        </div>
-                                        <p className="text-xs text-gray-400 mt-2 text-center">Click tables to update guests</p>
+                                    {/* Table Size Selector */}
+                                    <div className="flex gap-2 mb-3 p-1 bg-gray-100 rounded-lg">
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedTableSize(2)}
+                                            className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-all ${selectedTableSize === 2
+                                                ? "bg-black text-white shadow-sm"
+                                                : "text-gray-600 hover:text-gray-900"
+                                                }`}
+                                        >
+                                            2-Seat
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedTableSize(4)}
+                                            className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-all ${selectedTableSize === 4
+                                                ? "bg-black text-white shadow-sm"
+                                                : "text-gray-600 hover:text-gray-900"
+                                                }`}
+                                        >
+                                            4-Seat
+                                        </button>
                                     </div>
+
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={() => removeLastTable()}
+                                            disabled={!profileCompleted}
+                                            className={`w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-all text-gray-600 ${profileCompleted ? "" : "opacity-30 cursor-not-allowed"}`}
+                                        >
+                                            -
+                                        </button>
+                                        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                            <div className="h-full bg-black" style={{ width: "100%" }} />
+                                        </div>
+                                        <button
+                                            onClick={() => addTable(selectedTableSize)}
+                                            disabled={!profileCompleted}
+                                            className={`w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-all text-gray-600 ${profileCompleted ? "" : "opacity-30 cursor-not-allowed"}`}
+                                        >
+                                            +
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-2 text-center">Select size above, then click + to add</p>
                                 </div>
-                            </div>
 
-                            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                                <h3 className="text-lg font-semibold mb-3 text-gray-900">Legend</h3>
-                                <div className="space-y-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-4 h-4 rounded bg-green-100 border border-green-300" />
-                                        <span className="text-sm text-gray-600">Empty</span>
+                                <div className="pt-4 border-t border-gray-100">
+                                    <button
+                                        onClick={() => {
+                                            if (confirm("This will remove all custom tables and reset all guests to zero. Continue?")) {
+                                                handleReset();
+                                            }
+                                        }}
+                                        disabled={!profileCompleted}
+                                        className={`w-full py-2 rounded-lg text-sm font-semibold border-2 border-red-100 text-red-600 hover:bg-red-50 transition-all flex items-center justify-center gap-2 ${profileCompleted ? "" : "opacity-30 cursor-not-allowed"}`}
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                                            <path d="M3 3v5h5" />
+                                        </svg>
+                                        Reset to Default Layout
+                                    </button>
+                                </div>
+
+                                <div>
+                                    <div className="flex justify-between text-sm mb-4">
+                                        <span className="text-gray-500">Current Metrics</span>
+                                        <span className="font-bold text-gray-900">Live</span>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-4 h-4 rounded bg-blue-100 border border-blue-300" />
-                                        <span className="text-sm text-gray-600">Partially Full</span>
+
+                                    <div className="grid grid-cols-2 gap-4 mb-4">
+                                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                            <div className="text-xs text-gray-500 mb-1">Guests</div>
+                                            <div className="text-xl font-bold text-gray-900">{occupied}</div>
+                                        </div>
+                                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                            <div className="text-xs text-gray-500 mb-1">Tables In Use</div>
+                                            <div className="text-xl font-bold text-gray-900">
+                                                {tables.filter(t => t.seats > 0).length} <span className="text-gray-400 text-sm font-normal">/ {tables.length}</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-4 h-4 rounded bg-red-100 border border-red-300" />
-                                        <span className="text-sm text-gray-600">Full (4/4)</span>
+
+                                    <div className="flex items-center gap-3 opacity-50 cursor-not-allowed" title="Update by clicking tables">
+                                        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                            <div className="h-full bg-blue-600" style={{ width: `${occupancyRate}%` }} />
+                                        </div>
                                     </div>
+                                    <p className="text-xs text-gray-400 mt-2 text-center">Click tables to update guests</p>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Visual Grid */}
-                        <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl min-h-[500px] p-8 relative overflow-hidden shadow-sm flex flex-col">
-                            {tables.length === 0 ? (
-                                <div className="flex-1 flex flex-col items-center justify-center text-center p-8 opacity-60">
-                                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-2xl">
-                                        🍽️
-                                    </div>
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Tables Setup</h3>
-                                    <p className="text-gray-500 max-w-sm">Increase the Total Capacity using the controls on the left to generate your floor plan.</p>
-                                </div>
-                            ) : (
-                                <>
-                                    <div className="flex justify-between items-center mb-6">
-                                        <div className="flex items-center gap-4 text-sm">
-                                            <span className="font-semibold text-gray-900">Main Floor</span>
-                                            <span className="text-gray-400">|</span>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-gray-500">{tables.filter(t => t.seats === 0).length} Available</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-gray-500">{tables.filter(t => t.seats > 0).length} In Use</span>
-                                            </div>
+                        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                            <h3 className="text-lg font-semibold mb-3 text-gray-900">Legend</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">2-Seat Tables (Blue)</span>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-4 h-4 rounded bg-green-100 border border-green-300" />
+                                            <span className="text-sm text-gray-600">Empty</span>
                                         </div>
-                                        <div className="text-xs font-mono text-gray-400 opacity-50">v2.2</div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-4 h-4 rounded bg-blue-100 border border-blue-300" />
+                                            <span className="text-sm text-gray-600">Partially Full</span>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-4 h-4 rounded bg-red-100 border border-red-300" />
+                                            <span className="text-sm text-gray-600">Full</span>
+                                        </div>
                                     </div>
+                                </div>
+                                <div className="pt-2 border-t border-gray-100">
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">4-Seat Tables (Purple)</span>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-4 h-4 rounded bg-green-100 border border-green-300" />
+                                            <span className="text-sm text-gray-600">Empty</span>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-4 h-4 rounded bg-purple-100 border border-purple-300" />
+                                            <span className="text-sm text-gray-600">Partially Full</span>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-4 h-4 rounded bg-red-100 border border-red-300" />
+                                            <span className="text-sm text-gray-600">Full</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-                                    <div className="grid grid-cols-6 md:grid-cols-8 gap-4 content-start">
-                                        {tables.map((table) => (
+                    {/* Visual Grid */}
+                    <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl min-h-[500px] p-8 relative overflow-hidden shadow-sm flex flex-col">
+                        {tables.length === 0 ? (
+                            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 opacity-60">
+                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-2xl">
+                                    🍽️
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Profile Setup</h3>
+                                <p className="text-gray-500 max-w-sm">Please complete your profile to get started.</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="flex justify-between items-center mb-6">
+                                    <div className="flex items-center gap-4 text-sm">
+                                        <span className="font-semibold text-gray-900">Main Floor</span>
+                                        <span className="text-gray-400">|</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-gray-500">{tables.filter(t => t.seats === 0).length} Available</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-gray-500">{tables.filter(t => t.seats > 0).length} In Use</span>
+                                        </div>
+                                    </div>
+                                    <div className="text-xs font-mono text-gray-400 opacity-50">v2.2</div>
+                                </div>
+
+                                <div className="grid grid-cols-6 md:grid-cols-8 gap-4 content-start">
+                                    {tables.map((table) => {
+                                        const isFull = table.seats === table.size;
+                                        const isEmpty = table.seats === 0;
+                                        const isTwoSeat = table.size === 2;
+                                        const baseColor = isTwoSeat ? 'blue' : 'purple';
+                                        const seatColor = isFull ? 'red' : baseColor;
+
+                                        return (
                                             <button
                                                 key={table.id}
                                                 onClick={() => setSelectedTable(table.id)}
-                                                className={`aspect-square rounded-xl relative overflow-hidden border-2 transition-all hover:scale-105 active:scale-95 flex items-center justify-center ${table.seats === 4
+                                                className={`aspect-square rounded-xl relative overflow-hidden border-2 transition-all hover:scale-105 active:scale-95 flex items-center justify-center ${isFull
                                                     ? "border-red-500/50 bg-red-50"
-                                                    : table.seats > 0
-                                                        ? "border-blue-500/50 bg-blue-50"
-                                                        : "border-green-500/30 bg-green-50"
+                                                    : isEmpty
+                                                        ? "border-green-500/30 bg-green-50"
+                                                        : `border-${baseColor}-500/50 bg-${baseColor}-50`
                                                     }`}
                                             >
-                                                {/* Quadrant Visual */}
-                                                <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 opacity-30">
-                                                    <div className={`${table.seats >= 1 ? (table.seats === 4 ? "bg-red-500" : "bg-blue-500") : "bg-transparent"} border-r border-b border-black/5`} />
-                                                    <div className={`${table.seats >= 2 ? (table.seats === 4 ? "bg-red-500" : "bg-blue-500") : "bg-transparent"} border-b border-black/5`} />
-                                                    <div className={`${table.seats >= 3 ? (table.seats === 4 ? "bg-red-500" : "bg-blue-500") : "bg-transparent"} border-r border-black/5`} />
-                                                    <div className={`${table.seats >= 4 ? "bg-red-500" : "bg-transparent"}`} />
-                                                </div>
+                                                {/* Seat Visuals */}
+                                                {isTwoSeat ? (
+                                                    /* 1x2 grid (halves) for 2-seat tables */
+                                                    <div className="absolute inset-0 grid grid-cols-2 grid-rows-1 opacity-30">
+                                                        <div className={`${table.seats >= 1 ? `bg-${seatColor}-500` : "bg-transparent"} border-r border-black/5`} />
+                                                        <div className={`${table.seats >= 2 ? `bg-${seatColor}-500` : "bg-transparent"}`} />
+                                                    </div>
+                                                ) : (
+                                                    /* 2x2 grid (quadrants) for 4-seat tables */
+                                                    <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 opacity-30">
+                                                        <div className={`${table.seats >= 1 ? `bg-${seatColor}-500` : "bg-transparent"} border-r border-b border-black/5`} />
+                                                        <div className={`${table.seats >= 2 ? `bg-${seatColor}-500` : "bg-transparent"} border-b border-black/5`} />
+                                                        <div className={`${table.seats >= 3 ? `bg-${seatColor}-500` : "bg-transparent"} border-r border-black/5`} />
+                                                        <div className={`${table.seats >= 4 ? `bg-${seatColor}-500` : "bg-transparent"}`} />
+                                                    </div>
+                                                )}
 
                                                 <div className="relative z-10 flex flex-col items-center">
                                                     <span className="font-bold text-xs mb-0.5 text-gray-900">T{table.id}</span>
-                                                    <span className={`text-[10px] font-medium px-1.5 rounded-full ${table.seats === 4 ? "bg-red-100 text-red-700" :
-                                                        table.seats > 0 ? "bg-blue-100 text-blue-700" :
-                                                            "bg-green-100 text-green-700"
+                                                    <span className={`text-[10px] font-medium px-1.5 rounded-full ${isFull ? "bg-red-100 text-red-700" :
+                                                        isEmpty ? "bg-green-100 text-green-700" :
+                                                            `bg-${baseColor}-100 text-${baseColor}-700`
                                                         }`}>
-                                                        {table.seats}/4
+                                                        {table.seats}/{table.size}
                                                     </span>
                                                 </div>
                                             </button>
-                                        ))}
-                                    </div>
-
-                                    <div className="mt-auto border-t-2 border-dashed border-gray-200 pt-4 text-center">
-                                        <span className="text-xs font-bold text-gray-400 tracking-widest uppercase">Entrance</span>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                ) : activeTab === 'checkins' ? (
-                    <div className="max-w-5xl mx-auto">
-                        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-                                <h2 className="text-lg font-semibold text-gray-900">Daily Visitor Log</h2>
-                                <div className="flex gap-4 w-full md:w-auto">
-                                    <input
-                                        type="date"
-                                        value={filterDate}
-                                        onChange={(e) => setFilterDate(e.target.value)}
-                                        className="px-4 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-black/5 outline-none"
-                                    />
-                                    <button
-                                        onClick={() => setShowWalkInModal(true)}
-                                        className="px-4 py-2 bg-black text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors whitespace-nowrap"
-                                    >
-                                        + Log Walk-in
-                                    </button>
+                                        );
+                                    })}
                                 </div>
-                            </div>
 
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="bg-gray-50 text-gray-500 font-medium">
-                                        <tr>
-                                            <th className="px-4 py-3 rounded-l-lg">Time</th>
-                                            <th className="px-4 py-3">Customer Name</th>
-                                            <th className="px-4 py-3">Guests</th>
-                                            <th className="px-4 py-3">Discount</th>
-                                            <th className="px-4 py-3 rounded-r-lg">Source</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        {checkIns.filter(c => c.date === filterDate)
-                                            .sort((a, b) => b.time.localeCompare(a.time))
-                                            .map((checkIn) => (
-                                                <tr key={checkIn.id} className="hover:bg-gray-50/50 transition-colors">
-                                                    <td className="px-4 py-3 font-mono text-gray-500">{checkIn.time}</td>
-                                                    <td className="px-4 py-3 font-medium text-gray-900">{checkIn.name}</td>
-                                                    <td className="px-4 py-3 text-gray-600">{checkIn.guests}</td>
-                                                    <td className="px-4 py-3">
-                                                        <DiscountCoupon percent={checkIn.discountPercent} code={checkIn.discountCode} />
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${checkIn.source === 'reservation'
-                                                            ? "bg-blue-50 text-blue-700 border border-blue-200"
-                                                            : "bg-gray-100 text-gray-600 border border-gray-200"
-                                                            }`}>
-                                                            {checkIn.source === 'reservation' ? '📅 Reservation' : '🚶 Walk-in'}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        {checkIns.filter(c => c.date === filterDate).length === 0 && (
-                                            <tr>
-                                                <td colSpan={4} className="px-4 py-12 text-center text-gray-400">
-                                                    No check-ins found for this date.
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    /* Reservations View */
-                    <div className="max-w-4xl mx-auto">
-                        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-lg font-semibold text-gray-900">Booking Requests</h2>
-                                <div className="text-sm text-gray-500">
-                                    {reservations.filter(r => r.status === 'pending').length} Pending
+                                <div className="mt-auto border-t-2 border-dashed border-gray-200 pt-4 text-center">
+                                    <span className="text-xs font-bold text-gray-400 tracking-widest uppercase">Entrance</span>
                                 </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                {reservations.map(res => (
-                                    <div key={res.id} className="flex items-center justify-between p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-sm transition-all group">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold">
-                                                {res.name[0]}
-                                            </div>
-                                            <div>
-                                                <h4 className="font-semibold text-gray-900">{res.name}</h4>
-                                                <div className="flex items-center gap-2 text-sm text-gray-500">
-                                                    <span>📅 Today at {res.time}</span>
-                                                    <span>•</span>
-                                                    <span>👥 {res.guests} Guests</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-3">
-                                            {res.status === 'pending' ? (
-                                                <>
-                                                    <button
-                                                        onClick={() => handleReservation(res.id, 'rejected')}
-                                                        className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                                                    >
-                                                        Decline
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleReservation(res.id, 'confirmed')}
-                                                        className="px-4 py-2 text-sm font-medium bg-black text-white hover:bg-gray-800 rounded-lg shadow-sm transition-colors"
-                                                    >
-                                                        Accept Booking
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <div className={`px-3 py-1 rounded-full text-xs font-medium border ${res.status === 'confirmed' ? "bg-green-50 border-green-200 text-green-700" :
-                                                    "bg-red-50 border-red-200 text-red-700"
-                                                    }`}>
-                                                    {res.status.charAt(0).toUpperCase() + res.status.slice(1)}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                            </>
+                        )}
                     </div>
-                )}
+                </div>
             </main>
 
             {/* Seat Selection Modal */}
-            {selectedTable !== null && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 scale-100 animate-in zoom-in-95 duration-200">
-                        <h3 className="text-xl font-bold text-gray-900 mb-2 text-center">Update Table {selectedTable}</h3>
-                        <p className="text-gray-500 text-center mb-6">How many guests are seated?</p>
+            {selectedTable !== null && (() => {
+                const getTableMaxSeats = (tableId: number) => tables.find(t => t.id === tableId)?.size || 0;
+                const maxSeats = getTableMaxSeats(selectedTable);
+                const seatOptions = Array.from({ length: maxSeats + 1 }, (_, i) => i);
 
-                        <div className="grid grid-cols-5 gap-2 mb-6">
-                            {[0, 1, 2, 3, 4].map((num) => (
-                                <button
-                                    key={num}
-                                    onClick={() => updateTableSeats(selectedTable, num)}
-                                    className={`aspect-square rounded-xl font-bold text-lg transition-all hover:scale-105 active:scale-95 ${(tables.find(t => t.id === selectedTable)?.seats || 0) === num
-                                        ? "bg-black text-white shadow-lg"
-                                        : "bg-gray-100 text-gray-900 hover:bg-gray-200"
-                                        }`}
-                                >
-                                    {num}
-                                </button>
-                            ))}
+                return (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 scale-100 animate-in zoom-in-95 duration-200">
+                            <h3 className="text-xl font-bold text-gray-900 mb-2 text-center">Update Table {selectedTable}</h3>
+                            <p className="text-gray-500 text-center mb-2">How many guests are seated?</p>
+                            <p className="text-xs text-gray-400 text-center mb-6">({maxSeats}-seat table)</p>
+
+                            <div className={`grid grid-cols-5 gap-2 mb-6`}>
+                                {seatOptions.map((num) => (
+                                    <button
+                                        key={num}
+                                        onClick={() => updateTableSeats(selectedTable, num)}
+                                        className={`aspect-square rounded-xl font-bold text-lg transition-all hover:scale-105 active:scale-95 ${(tables.find(t => t.id === selectedTable)?.seats || 0) === num
+                                            ? "bg-black text-white shadow-lg"
+                                            : "bg-gray-100 text-gray-900 hover:bg-gray-200"
+                                            }`}
+                                    >
+                                        {num}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <button
+                                onClick={() => setSelectedTable(null)}
+                                className="w-full py-3 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
                         </div>
-
-                        <button
-                            onClick={() => setSelectedTable(null)}
-                            className="w-full py-3 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition-colors"
-                        >
-                            Cancel
-                        </button>
                     </div>
-                </div>
-            )}
-            {/* Walk-in Modal */}
-            {showWalkInModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 scale-100 animate-in zoom-in-95 duration-200">
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">Log Walk-in Customer</h3>
-                        <p className="text-gray-500 mb-6 text-sm">Enter details for the new arrival.</p>
-
-                        <form onSubmit={handleWalkInSubmit} className="space-y-4">
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 mb-1 block">Customer Name</label>
-                                <input
-                                    autoFocus
-                                    type="text"
-                                    required
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black/5"
-                                    placeholder="e.g. Alex"
-                                    value={walkInForm.name}
-                                    onChange={e => setWalkInForm(prev => ({ ...prev, name: e.target.value }))}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 mb-1 block">Number of Guests</label>
-                                <div className="grid grid-cols-5 gap-2">
-                                    {[1, 2, 3, 4, 5].map((num) => (
-                                        <button
-                                            key={num}
-                                            type="button"
-                                            onClick={() => setWalkInForm(prev => ({ ...prev, guests: num }))}
-                                            className={`aspect-square rounded-lg font-bold text-sm transition-all border ${walkInForm.guests === num
-                                                ? "bg-black text-white border-black"
-                                                : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
-                                                }`}
-                                        >
-                                            {num}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-sm font-medium text-gray-700 mb-1 block">Discount %</label>
-                                    <input
-                                        type="text"
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black/5"
-                                        placeholder="e.g. 15%"
-                                        value={walkInForm.discountPercent}
-                                        onChange={e => setWalkInForm(prev => ({ ...prev, discountPercent: e.target.value }))}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-sm font-medium text-gray-700 mb-1 block">Coupon Code</label>
-                                    <input
-                                        type="text"
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black/5"
-                                        placeholder="e.g. SUMMER24"
-                                        value={walkInForm.discountCode}
-                                        onChange={e => setWalkInForm(prev => ({ ...prev, discountCode: e.target.value }))}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 pt-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowWalkInModal(false)}
-                                    className="flex-1 py-2.5 rounded-lg border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="flex-1 py-2.5 rounded-lg bg-black text-white font-medium hover:bg-gray-800 transition-colors shadow-lg shadow-black/20"
-                                >
-                                    Check In
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+                );
+            })()}
         </div>
     );
 }

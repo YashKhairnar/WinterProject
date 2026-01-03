@@ -97,7 +97,14 @@ class InfraStack(Stack):
             self, 
             "cafe-photos-bucket", 
             versioned=True, 
-            removal_policy=RemovalPolicy.DESTROY
+            removal_policy=RemovalPolicy.DESTROY,
+            public_read_access=True,
+            block_public_access=s3.BlockPublicAccess(
+                block_public_acls=False,
+                block_public_policy=False,
+                ignore_public_acls=False,
+                restrict_public_buckets=False
+            )
         )
         #grand lambda permission to write to the s3 bucket
         cafe_photos_bucket.grant_write(cafe_lambda)

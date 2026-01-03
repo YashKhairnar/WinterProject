@@ -3,11 +3,11 @@ import json
 from mangum import Mangum
 from app.main import app
 
-asgi_handler = Mangum(app)
+asgi_handler = Mangum(app, lifespan="off")
 
 def handler(event, context):
     # Debug print – shows up in CloudWatch logs
-    print("RAW EVENT:", json.dumps(event))
+    print(f"PATH: {event.get('path')}, METHOD: {event.get('httpMethod')}")
     try:
         return asgi_handler(event, context)
     except RuntimeError as e:

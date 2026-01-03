@@ -1,6 +1,37 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getCurrentUser } from "aws-amplify/auth";
+
 
 export default function Home() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getCurrentUser()
+      .then(() => {
+        router.push("/dashboard");
+      })
+      .catch((err) => {
+        console.log("No active session:", err);
+        setLoading(false);
+      });
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <div className="w-12 h-12 bg-gray-200 rounded-xl" />
+          <div className="h-4 w-24 bg-gray-200 rounded" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background relative overflow-hidden">
       {/* Subtle background glow */}

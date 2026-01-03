@@ -7,7 +7,6 @@ import Link from "next/link";
 
 export default function SignupPage() {
     const router = useRouter();
-    // Form Steps: 'signup' | 'confirm'
     const [step, setStep] = useState<'signup' | 'confirm'>('signup');
 
     // Form Data
@@ -50,6 +49,7 @@ export default function SignupPage() {
             setLoading(false);
         }
     };
+
 
     const handleConfirm = async (e: React.FormEvent) => {
         e.preventDefault();

@@ -4,6 +4,10 @@ import { useAuthProtection } from "../hooks/useAuthProtection";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+// --- Constants ---
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const cleanAPIURL = API_URL ? (API_URL.endsWith("/") ? API_URL.slice(0, -1) : API_URL) : "";
+
 // --- Components ---
 
 function EditableText({
@@ -123,8 +127,8 @@ function EditableAmenities({
                             key={opt}
                             onClick={() => toggle(opt)}
                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${tempValue.includes(opt)
-                                    ? "bg-black text-white border-black"
-                                    : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+                                ? "bg-black text-white border-black"
+                                : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
                                 }`}
                         >
                             {opt}
@@ -183,7 +187,7 @@ function EditablePhotos({
                 const formData = new FormData();
                 formData.append('file', file);
 
-                const res = await fetch(uploadEndpoint, {
+                const res = await fetch(`${cleanAPIURL}/cafes/upload`, {
                     method: 'POST',
                     body: formData
                 });
@@ -292,24 +296,27 @@ export default function CafeProfilePage() {
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://x3vovkuu5l.execute-api.us-east-1.amazonaws.com/prod';
-
     useEffect(() => {
         if (userId) {
             fetchCafe();
         }
     }, [userId]);
 
+
     const fetchCafe = async () => {
         try {
-            const res = await fetch(`${API_URL}/cafes/owner/${userId}`);
+            const fetchURL = `${cleanAPIURL}/cafes/owner/${userId}`;
+            console.log("DEBUG: Profile fetching cafe for userId:", userId, "from URL:", fetchURL);
+            const res = await fetch(fetchURL);
             if (res.ok) {
                 const data = await res.json();
+                console.log("DEBUG: received cafe data for profile:", data);
                 setCafe(data);
             } else if (res.status === 404) {
+                console.log("DEBUG: cafe not found (404)");
                 setCafe(null);
             } else {
-                console.error("Error fetching cafe");
+                console.log("DEBUG: Error fetching cafe status:", res.status);
             }
         } catch (err) {
             console.error(err);
@@ -325,7 +332,9 @@ export default function CafeProfilePage() {
         setCafe({ ...cafe, [field]: value });
 
         try {
-            const res = await fetch(`${API_URL}/cafes/${cafe.id}`, {
+            const patchURL = `${cleanAPIURL}/cafes/${cafe.id}`;
+            console.log("DEBUG: patching cafe at", patchURL);
+            const res = await fetch(patchURL, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json'
@@ -469,22 +478,22 @@ export default function CafeProfilePage() {
                                         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Quick Stats</h3>
                                         <div className="space-y-4">
                                             <div className="flex justify-between items-center">
-                                                <span className="text-gray-600">Total Tables</span>
+                                                <span className="text-gray-600">2-Seat Tables</span>
                                                 <EditableText
-                                                    value={cafe.total_tables}
-                                                    onSave={(val) => handleUpdate('total_tables', val)}
+                                                    value={cafe.two_tables}
+                                                    onSave={(val) => handleUpdate('two_tables', val)}
                                                     className="font-bold text-gray-900"
-                                                    label="Tables"
+                                                    label="2-Seat Tables"
                                                     type="number"
                                                 />
                                             </div>
                                             <div className="flex justify-between items-center">
-                                                <span className="text-gray-600">Max Capacity</span>
+                                                <span className="text-gray-600">4-Seat Tables</span>
                                                 <EditableText
-                                                    value={cafe.occupancy_capacity}
-                                                    onSave={(val) => handleUpdate('occupancy_capacity', val)}
+                                                    value={cafe.four_tables}
+                                                    onSave={(val) => handleUpdate('four_tables', val)}
                                                     className="font-bold text-gray-900"
-                                                    label="Capacity"
+                                                    label="4-Seat Tables"
                                                     type="number"
                                                 />
                                             </div>

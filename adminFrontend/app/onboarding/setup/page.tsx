@@ -1,16 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthProtection } from "../../hooks/useAuthProtection";
 
+type WorkingHoursDay = { open: string; close: string; closed: boolean };
+
+function normalizeWorkingHours(
+    wh: Record<string, WorkingHoursDay>
+): Record<string, WorkingHoursDay> {
+    const map: Record<string, string> = {
+        monday: "mon",
+        tuesday: "tue",
+        wednesday: "wed",
+        thursday: "thu",
+        friday: "fri",
+        saturday: "sat",
+        sunday: "sun",
+    };
+
+    const out: Record<string, WorkingHoursDay> = {};
+    for (const [day, hours] of Object.entries(wh)) {
+        const key = map[day.toLowerCase()] ?? day.toLowerCase().slice(0, 3);
+        out[key] = hours;
+    }
+    return out;
+}
 
 export default function OnboardingSetupPage() {
     const { isAuthenticated, loading, userId } = useAuthProtection();
     const router = useRouter();
     const [step, setStep] = useState(1);
+
     const apiURL = process.env.NEXT_PUBLIC_API_URL;
+
+    const [submitting, setSubmitting] = useState(false);
 
     // Hooks must be unconditional
     const [formData, setFormData] = useState({
@@ -29,7 +54,8 @@ export default function OnboardingSetupPage() {
         latitude: null as number | null,
         longitude: null as number | null,
         photos: [] as File[],
-        totalTables: 0,
+        tables2Seat: 0,
+        tables4Seat: 0,
         workingHours: {
             Monday: { open: "09:00", close: "17:00", closed: false },
             Tuesday: { open: "09:00", close: "17:00", closed: false },
@@ -38,17 +64,24 @@ export default function OnboardingSetupPage() {
             Friday: { open: "09:00", close: "17:00", closed: false },
             Saturday: { open: "10:00", close: "22:00", closed: false },
             Sunday: { open: "10:00", close: "22:00", closed: false },
-        } as Record<string, { open: string; close: string; closed: boolean }>,
+        } as Record<string, WorkingHoursDay>,
     });
 
-    // Loading/Auth checks come AFTER hooks
-    if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-    if (!isAuthenticated) return null;
+    // Sync cognito_sub once userId arrives (DON'T setState during render)
+    useEffect(() => {
+        if (userId) {
+            setFormData((prev) => ({ ...prev, cognito_sub: userId }));
+        }
+    }, [userId]);
 
-    // Sync Cognito ID once available
-    if (userId && !formData.cognito_sub) {
-        setFormData(prev => ({ ...prev, cognito_sub: userId }));
-    }
+    // Auth checks AFTER hooks
+    if (loading)
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                Loading...
+            </div>
+        );
+    if (!isAuthenticated) return null;
 
     const updateForm = (key: string, value: any) => {
         setFormData((prev) => ({ ...prev, [key]: value }));
@@ -67,10 +100,10 @@ export default function OnboardingSetupPage() {
         if ("geolocation" in navigator) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
-                    setFormData(prev => ({
+                    setFormData((prev) => ({
                         ...prev,
                         latitude: position.coords.latitude,
-                        longitude: position.coords.longitude
+                        longitude: position.coords.longitude,
                     }));
                 },
                 (error) => {
@@ -85,52 +118,74 @@ export default function OnboardingSetupPage() {
 
     const handleNext = () => setStep((prev) => prev + 1);
     const handleBack = () => setStep((prev) => prev - 1);
+
     const submitForm = async () => {
-        // Create FormData for multipart/form-data submission
-        const formDataToSend = new FormData();
+        if (!apiURL) {
+            alert("NEXT_PUBLIC_API_URL is not set");
+            return;
+        }
+        if (!formData.cognito_sub) {
+            alert("No cognito_sub (userId) found. Please re-login.");
+            return;
+        }
 
-        // Add text fields
-        formDataToSend.append('cognito_sub', formData.cognito_sub);
-        formDataToSend.append('name', formData.name);
-        formDataToSend.append('description', formData.description);
-        formDataToSend.append('phone_number', formData.phone);
-        formDataToSend.append('address', formData.address);
-        formDataToSend.append('city', formData.city);
-        formDataToSend.append('latitude', String(formData.latitude || 0));
-        formDataToSend.append('longitude', String(formData.longitude || 0));
-        formDataToSend.append('instagram_url', formData.instagram);
-        formDataToSend.append('website_link', formData.website);
-        formDataToSend.append('menu_link', formData.menuLink);
-        formDataToSend.append('total_tables', String(formData.totalTables));
-        formDataToSend.append('occupancy_capacity', String(formData.totalTables * 4));
-        formDataToSend.append('occupancy_level', '0');
+        try {
+            setSubmitting(true);
 
-        // Add JSON fields as strings
-        formDataToSend.append('amenities', JSON.stringify(formData.amenities));
-        formDataToSend.append('working_hours', JSON.stringify(formData.workingHours));
+            // Clean up the URL: remove trailing slash if present, then add /cafes/
+            const cleanURL = apiURL.endsWith("/") ? apiURL.slice(0, -1) : apiURL;
+            const fullURL = `${cleanURL}/cafes/`;
 
-        // Add cafe photo files
-        formData.photos.forEach((photo) => {
-            formDataToSend.append('cafe_photos', photo);
-        });
+            const formDataToSend = new FormData();
+            formDataToSend.append("cognito_sub", formData.cognito_sub);
+            formDataToSend.append("name", formData.name);
+            formDataToSend.append("description", formData.description || "");
+            formDataToSend.append("phone_number", formData.phone || "");
+            formDataToSend.append("address", formData.address);
+            formDataToSend.append("city", formData.city);
+            formDataToSend.append("latitude", String(formData.latitude ?? 0));
+            formDataToSend.append("longitude", String(formData.longitude ?? 0));
+            formDataToSend.append("website_link", formData.website || "");
+            formDataToSend.append("instagram_url", formData.instagram || "");
 
-        // Add menu photo files
-        formData.menuPhotos.forEach((photo) => {
-            formDataToSend.append('menu_photos', photo);
-        });
+            if (formData.menuType === "link") {
+                formDataToSend.append("menu_link", formData.menuLink || "");
+            } else {
+                formData.menuPhotos.forEach((file) => {
+                    formDataToSend.append("menu_photos", file);
+                });
+            }
 
-        const response = await fetch(`${apiURL}/cafes`, {
-            method: "POST",
-            body: formDataToSend  // Don't set Content-Type header - browser will set it with boundary
-        })
+            formData.photos.forEach((file) => {
+                formDataToSend.append("cafe_photos", file);
+            });
 
-        if (response.ok) {
-            console.log("Cafe created successfully!");
-            router.push('/profile')
-        } else {
-            const errorText = await response.text();
-            console.error("Error creating cafe:", errorText);
-            alert(`Failed to create cafe: ${errorText}`);
+            formDataToSend.append("two_tables", String(formData.tables2Seat));
+            formDataToSend.append("four_tables", String(formData.tables4Seat));
+            formDataToSend.append("amenities", JSON.stringify(formData.amenities));
+            formDataToSend.append(
+                "working_hours",
+                JSON.stringify(normalizeWorkingHours(formData.workingHours))
+            );
+            formDataToSend.append("table_config", "[]");
+
+            const response = await fetch(fullURL, {
+                method: "POST",
+                body: formDataToSend,
+            });
+
+            if (response.ok) {
+                router.push("/profile");
+            } else {
+                const errorText = await response.text();
+                console.error("Error creating cafe:", errorText);
+                alert(`Failed to create cafe: ${errorText}`);
+            }
+        } catch (err: any) {
+            console.error("DEBUG: fetch error:", err);
+            alert(`Failed: ${err?.message || String(err)}`);
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -149,7 +204,10 @@ export default function OnboardingSetupPage() {
                             >
                                 {s}
                             </div>
-                            <span className={`text-sm font-medium ${step >= s ? "text-foreground" : "text-muted-foreground"}`}>
+                            <span
+                                className={`text-sm font-medium ${step >= s ? "text-foreground" : "text-muted-foreground"
+                                    }`}
+                            >
                                 {s === 1 ? "Basic Info" : s === 2 ? "Media & Menu" : "Details"}
                             </span>
                             {s < 3 && <div className="w-12 h-[2px] bg-muted-foreground/20 mx-2" />}
@@ -157,8 +215,18 @@ export default function OnboardingSetupPage() {
                     ))}
                 </div>
 
-                <form onSubmit={(e) => e.preventDefault()} className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
-                    {/* Step 1: Basic Information */}
+                <form
+                    onSubmit={(e) => e.preventDefault()}
+                    className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm"
+                >
+                    {/* Status */}
+                    {submitting && (
+                        <div className="mb-6 p-3 rounded-lg border border-gray-200 bg-gray-50 text-sm">
+                            <span className="font-medium">Submitting...</span>
+                        </div>
+                    )}
+
+                    {/* Step 1 */}
                     {step === 1 && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-300">
                             <div className="text-center mb-8">
@@ -178,6 +246,7 @@ export default function OnboardingSetupPage() {
                                         onChange={(e) => updateForm("name", e.target.value)}
                                     />
                                 </div>
+
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Phone Number</label>
                                     <input
@@ -189,6 +258,7 @@ export default function OnboardingSetupPage() {
                                         onChange={(e) => updateForm("phone", e.target.value)}
                                     />
                                 </div>
+
                                 <div className="space-y-2 md:col-span-2">
                                     <label className="text-sm font-medium">Description</label>
                                     <textarea
@@ -200,17 +270,19 @@ export default function OnboardingSetupPage() {
                                         onChange={(e) => updateForm("description", e.target.value)}
                                     />
                                 </div>
+
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">City</label>
                                     <input
                                         required
                                         type="text"
                                         className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                                        placeholder="New York"
+                                        placeholder="San Jose"
                                         value={formData.city}
                                         onChange={(e) => updateForm("city", e.target.value)}
                                     />
                                 </div>
+
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Address</label>
                                     <input
@@ -231,26 +303,24 @@ export default function OnboardingSetupPage() {
                                             onClick={fetchLocation}
                                             className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
                                             Fetch Location
                                         </button>
 
                                         {formData.latitude && formData.longitude && (
                                             <div className="flex items-center gap-2 text-green-600 animate-in fade-in slide-in-from-left-4 duration-300">
-                                                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center border border-green-200">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                                </div>
                                                 <span className="text-sm font-medium">Location Fetched</span>
                                             </div>
                                         )}
                                     </div>
-                                    <p className="text-xs text-muted-foreground">Click fetch to automatically get your current GPS coordinates.</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Click fetch to automatically get your current GPS coordinates.
+                                    </p>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Step 2: Media & Menu */}
+                    {/* Step 2 */}
                     {step === 2 && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-300">
                             <div className="text-center mb-8">
@@ -261,12 +331,18 @@ export default function OnboardingSetupPage() {
                             <div className="space-y-6">
                                 <div>
                                     <label className="text-sm font-medium mb-4 block">
-                                        Cafe Photos <span className="text-muted-foreground font-normal">({formData.photos.length}/10)</span>
+                                        Cafe Photos{" "}
+                                        <span className="text-muted-foreground font-normal">
+                                            ({formData.photos.length}/10)
+                                        </span>
                                     </label>
 
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                                         {formData.photos.map((photo, index) => (
-                                            <div key={index} className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 group">
+                                            <div
+                                                key={index}
+                                                className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 group"
+                                            >
                                                 <img
                                                     src={URL.createObjectURL(photo)}
                                                     alt={`Upload ${index + 1}`}
@@ -281,7 +357,7 @@ export default function OnboardingSetupPage() {
                                                     }}
                                                     className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
                                                 >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                    ✕
                                                 </button>
                                             </div>
                                         ))}
@@ -302,19 +378,17 @@ export default function OnboardingSetupPage() {
                                                             if (files.length > remainingSlots) {
                                                                 alert(`You can only add ${remainingSlots} more photos.`);
                                                             }
-
                                                             updateForm("photos", [...formData.photos, ...filesToAdd]);
                                                         }
                                                     }}
                                                 />
-                                                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mb-2">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                                </div>
                                                 <span className="text-xs font-medium text-gray-600">Add Photo</span>
                                             </label>
                                         )}
                                     </div>
-                                    <p className="text-xs text-muted-foreground">Upload up to 10 photos. Supported formats: JPG, PNG.</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Upload up to 10 photos. Supported formats: JPG, PNG.
+                                    </p>
                                 </div>
 
                                 <div className="space-y-4">
@@ -346,16 +420,19 @@ export default function OnboardingSetupPage() {
                                     {formData.menuType === "link" ? (
                                         <input
                                             type="url"
-                                            className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary/20 outline-none transition-all animate-in fade-in"
+                                            className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                                             placeholder="https://..."
                                             value={formData.menuLink}
                                             onChange={(e) => updateForm("menuLink", e.target.value)}
                                         />
                                     ) : (
-                                        <div className="animate-in fade-in">
+                                        <div>
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2">
                                                 {formData.menuPhotos.map((photo, index) => (
-                                                    <div key={index} className="relative aspect-[3/4] rounded-xl overflow-hidden border border-gray-200 group">
+                                                    <div
+                                                        key={index}
+                                                        className="relative aspect-[3/4] rounded-xl overflow-hidden border border-gray-200 group"
+                                                    >
                                                         <img
                                                             src={URL.createObjectURL(photo)}
                                                             alt={`Menu Page ${index + 1}`}
@@ -370,10 +447,11 @@ export default function OnboardingSetupPage() {
                                                             }}
                                                             className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
                                                         >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                            ✕
                                                         </button>
                                                     </div>
                                                 ))}
+
                                                 <label className="border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 hover:border-gray-300 transition-all aspect-[3/4]">
                                                     <input
                                                         type="file"
@@ -387,13 +465,13 @@ export default function OnboardingSetupPage() {
                                                             }
                                                         }}
                                                     />
-                                                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mb-2">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                                    </div>
                                                     <span className="text-xs font-medium text-gray-600">Add Page</span>
                                                 </label>
                                             </div>
-                                            <p className="text-xs text-muted-foreground">Upload menu pages. Supported formats: JPG, PNG.</p>
+
+                                            <p className="text-xs text-muted-foreground">
+                                                Upload menu pages. Supported formats: JPG, PNG.
+                                            </p>
                                         </div>
                                     )}
                                 </div>
@@ -425,7 +503,7 @@ export default function OnboardingSetupPage() {
                         </div>
                     )}
 
-                    {/* Step 3: Amenities & Final Details */}
+                    {/* Step 3 */}
                     {step === 3 && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-300">
                             <div className="text-center mb-8">
@@ -434,34 +512,58 @@ export default function OnboardingSetupPage() {
                             </div>
 
                             <div className="space-y-4">
-                                <label className="text-sm font-medium">Total Tables</label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                                    placeholder="e.g. 15"
-                                    value={formData.totalTables || ""}
-                                    onChange={(e) => updateForm("totalTables", parseInt(e.target.value) || 0)}
-                                />
-                                <p className="text-xs text-muted-foreground">This sets your initial dashboard capacity.</p>
+                                <label className="text-sm font-medium">Table Configuration</label>
+                                <p className="text-xs text-muted-foreground mb-4">
+                                    Specify how many tables of each size you have.
+                                </p>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">2-Seat Tables</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                            value={formData.tables2Seat || ""}
+                                            onChange={(e) =>
+                                                updateForm("tables2Seat", parseInt(e.target.value) || 0)
+                                            }
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">4-Seat Tables</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                            value={formData.tables4Seat || ""}
+                                            onChange={(e) =>
+                                                updateForm("tables4Seat", parseInt(e.target.value) || 0)
+                                            }
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
                             <div className="space-y-4">
                                 <label className="text-sm font-medium">Amenities</label>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                    {["WiFi", "Outlets", "Outdoor Seating", "Pet Friendly", "Vegan Options", "Live Music"].map((amenity) => (
-                                        <button
-                                            key={amenity}
-                                            type="button"
-                                            onClick={() => toggleAmenity(amenity)}
-                                            className={`px-4 py-3 rounded-lg text-sm font-medium border transition-all ${formData.amenities.includes(amenity)
-                                                ? "bg-primary/10 border-primary text-primary"
-                                                : "bg-background border-border hover:bg-muted"
-                                                }`}
-                                        >
-                                            {amenity} {formData.amenities.includes(amenity) && "✓"}
-                                        </button>
-                                    ))}
+                                    {["WiFi", "Outlets", "Outdoor Seating", "Pet Friendly", "Vegan Options", "Live Music"].map(
+                                        (amenity) => (
+                                            <button
+                                                key={amenity}
+                                                type="button"
+                                                onClick={() => toggleAmenity(amenity)}
+                                                className={`px-4 py-3 rounded-lg text-sm font-medium border transition-all ${formData.amenities.includes(amenity)
+                                                    ? "bg-primary/10 border-primary text-primary"
+                                                    : "bg-background border-border hover:bg-muted"
+                                                    }`}
+                                            >
+                                                {amenity} {formData.amenities.includes(amenity) && "✓"}
+                                            </button>
+                                        )
+                                    )}
                                 </div>
                             </div>
 
@@ -481,13 +583,14 @@ export default function OnboardingSetupPage() {
                                                         newHours[day].closed = e.target.checked;
                                                         updateForm("workingHours", newHours);
                                                     }}
-                                                    className="rounded border-gray-300 text-black focus:ring-black"
                                                 />
-                                                <span className="text-gray-500 text-xs uppercase tracking-wide">Closed</span>
+                                                <span className="text-gray-500 text-xs uppercase tracking-wide">
+                                                    Closed
+                                                </span>
                                             </label>
 
                                             {!hours.closed && (
-                                                <div className="flex items-center gap-2 animate-in fade-in">
+                                                <div className="flex items-center gap-2">
                                                     <input
                                                         type="time"
                                                         value={hours.open}
@@ -496,7 +599,7 @@ export default function OnboardingSetupPage() {
                                                             newHours[day].open = e.target.value;
                                                             updateForm("workingHours", newHours);
                                                         }}
-                                                        className="px-2 py-1 border border-gray-200 rounded outline-none focus:border-black"
+                                                        className="px-2 py-1 border border-gray-200 rounded outline-none"
                                                     />
                                                     <span className="text-gray-400">-</span>
                                                     <input
@@ -507,7 +610,7 @@ export default function OnboardingSetupPage() {
                                                             newHours[day].close = e.target.value;
                                                             updateForm("workingHours", newHours);
                                                         }}
-                                                        className="px-2 py-1 border border-gray-200 rounded outline-none focus:border-black"
+                                                        className="px-2 py-1 border border-gray-200 rounded outline-none"
                                                     />
                                                 </div>
                                             )}
@@ -518,18 +621,22 @@ export default function OnboardingSetupPage() {
                         </div>
                     )}
 
-                    {/* Navigation Buttons */}
+                    {/* Nav buttons */}
                     <div className="flex justify-between mt-8 pt-6 border-t border-border">
                         {step > 1 ? (
                             <button
                                 type="button"
                                 onClick={handleBack}
                                 className="px-6 py-2 rounded-lg hover:bg-muted transition-colors font-medium"
+                                disabled={submitting}
                             >
                                 Back
                             </button>
                         ) : (
-                            <Link href="/dashboard" className="px-6 py-2 rounded-lg hover:bg-muted transition-colors font-medium text-muted-foreground">
+                            <Link
+                                href="/dashboard"
+                                className="px-6 py-2 rounded-lg hover:bg-muted transition-colors font-medium text-muted-foreground"
+                            >
                                 Cancel
                             </Link>
                         )}
@@ -539,6 +646,7 @@ export default function OnboardingSetupPage() {
                                 type="button"
                                 onClick={handleNext}
                                 className="px-8 py-2 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
+                                disabled={submitting}
                             >
                                 Next Step
                             </button>
@@ -547,8 +655,9 @@ export default function OnboardingSetupPage() {
                                 type="button"
                                 onClick={submitForm}
                                 className="px-8 py-2 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-primary/25"
+                                disabled={submitting}
                             >
-                                Complete Setup
+                                {submitting ? "Submitting..." : "Complete Setup"}
                             </button>
                         )}
                     </div>
