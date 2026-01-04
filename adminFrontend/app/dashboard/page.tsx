@@ -13,6 +13,7 @@ export default function DashboardPage() {
     const [selectedTableSize, setSelectedTableSize] = useState<2 | 4>(4); // For adding new tables
     const [profileCompleted, setProfileCompleted] = useState(false);
     const [baseCounts, setBaseCounts] = useState<{ two: number; four: number } | null>(null);
+    const [unsavedChanges, setUnsavedChanges] = useState(false);
     const apiURL = process.env.NEXT_PUBLIC_API_URL;
 
     // URL normalization
@@ -26,6 +27,7 @@ export default function DashboardPage() {
         }
     }, [isAuthenticated, userId]);
 
+    
     // Fetch cafe details
     const fetchCafeDetails = async () => {
         if (!cleanAPIURL) {
@@ -45,17 +47,42 @@ export default function DashboardPage() {
                 setBaseCounts({ two: data.two_tables || 0, four: data.four_tables || 0 });
 
                 // 1. If we have a saved configuration, use it
-                if (data.table_config && Array.isArray(data.table_config) && data.table_config.length > 0) {
-                    console.log("DEBUG: using saved table_config");
-                    // Ensure seats property exists if coming from backend without it
-                    const normalizedTables = data.table_config.map((t: any) => ({
-                        ...t,
-                        id: typeof t.id === 'string' ? parseInt(t.id) : t.id,
-                        seats: t.seats ?? 0
-                    }));
-                    setTables(normalizedTables);
-                    const totalCapacity = normalizedTables.reduce((acc: number, t: any) => acc + (t.size || 0), 0);
-                    setCapacity(totalCapacity);
+                if (data.table_config) {
+                    console.log("DEBUG: using saved table_config", data.table_config);
+
+                    if (Array.isArray(data.table_config) && data.table_config.length > 0) {
+                        // Detailed List View
+                        const normalizedTables = data.table_config.map((t: any) => ({
+                            ...t,
+                            id: typeof t.id === 'string' ? parseInt(t.id) : t.id,
+                            seats: t.seats ?? 0
+                        }));
+                        setTables(normalizedTables);
+                        const totalCapacity = normalizedTables.reduce((acc: number, t: any) => acc + (t.size || 0), 0);
+                        setCapacity(totalCapacity);
+                    }
+                    else if (typeof data.table_config === 'object' && !Array.isArray(data.table_config)) {
+                        // Summary Dict View (Default Config)
+                        // Needs hydration to visual map
+                        console.log("DEBUG: hydrating from summary config");
+                        const generatedTables: { id: number; seats: number; size: 2 | 4 }[] = [];
+                        let tId = 1;
+
+                        const twoConfig = data.table_config["2_seats_table"] || {};
+                        const fourConfig = data.table_config["4_seats_table"] || {};
+
+                        // Create 2-seat tables
+                        for (let i = 0; i < (twoConfig.total || 0); i++) {
+                            generatedTables.push({ id: tId++, size: 2, seats: 0 });
+                        }
+                        // Create 4-seat tables
+                        for (let i = 0; i < (fourConfig.total || 0); i++) {
+                            generatedTables.push({ id: tId++, size: 4, seats: 0 });
+                        }
+
+                        setTables(generatedTables);
+                        setCapacity(((twoConfig.total || 0) * 2) + ((fourConfig.total || 0) * 4));
+                    }
                 }
                 // 2. Otherwise, generate a default layout from the table counts
                 else if (data.two_tables > 0 || data.four_tables > 0) {
@@ -128,11 +155,7 @@ export default function DashboardPage() {
 
 
     // Auto-sync whenever tables change
-    useEffect(() => {
-        if (cafeId && tables.length > 0) {
-            syncOccupancy(tables);
-        }
-    }, [tables, cafeId]);
+    // Auto-sync useEffect removed. Changes are now manual.
 
 
 
@@ -144,11 +167,14 @@ export default function DashboardPage() {
     if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
     if (!isAuthenticated) return null;
 
-    const saveTableConfig = async (updatedTables: { id: number; seats: number; size: 2 | 4 }[]) => {
+    const handleSave = async () => {
         if (!cafeId) return;
 
-        const two_tables = updatedTables.filter(t => t.size === 2).length;
-        const four_tables = updatedTables.filter(t => t.size === 4).length;
+        console.log("DEBUG: Saving table config...", tables);
+
+        // Calculate counts from the current visual state
+        const two_tables = tables.filter(t => t.size === 2).length;
+        const four_tables = tables.filter(t => t.size === 4).length;
 
         try {
             await fetch(`${cleanAPIURL}/cafes/${cafeId}`, {
@@ -157,11 +183,19 @@ export default function DashboardPage() {
                 body: JSON.stringify({
                     two_tables,
                     four_tables,
-                    table_config: updatedTables
+                    table_config: tables
                 })
             });
+
+            // Also force an occupancy sync
+            await syncOccupancy(tables);
+
+            setUnsavedChanges(false);
+            // Reload to ensure everything is in sync
+            await fetchCafeDetails();
         } catch (error) {
             console.error("DEBUG: Error saving table config:", error);
+            alert("Failed to save changes. Please try again.");
         }
     };
 
@@ -174,7 +208,7 @@ export default function DashboardPage() {
         const updatedTables = [...tables, newTable];
         setTables(updatedTables);
         setCapacity(prev => prev + size);
-        saveTableConfig(updatedTables);
+        setUnsavedChanges(true);
     };
 
     const removeLastTable = () => {
@@ -183,7 +217,7 @@ export default function DashboardPage() {
             const updatedTables = tables.slice(0, -1);
             setTables(updatedTables);
             setCapacity(prev => Math.max(0, prev - lastTable.size));
-            saveTableConfig(updatedTables);
+            setUnsavedChanges(true);
         }
     };
 
@@ -191,7 +225,7 @@ export default function DashboardPage() {
         const updatedTables = tables.map(t => t.id === tableId ? { ...t, seats } : t);
         setTables(updatedTables);
         setSelectedTable(null);
-        saveTableConfig(updatedTables);
+        setUnsavedChanges(true);
     };
 
     const getTableMaxSeats = (tableId: number): number => {
@@ -218,9 +252,23 @@ export default function DashboardPage() {
             generatedTables.push({ id: tId++, size: 4, seats: 0 });
         }
 
+        // Create Summary Config for Reset (Default State)
+        const summaryConfig = {
+            "2_seats_table": {
+                "total": baseCounts.two,
+                "occupied_seats": 0,
+                "occupied_tables": 0
+            },
+            "4_seats_table": {
+                "total": baseCounts.four,
+                "occupied_seats": 0,
+                "occupied_tables": 0
+            }
+        };
+
         setTables(generatedTables);
         setCapacity((baseCounts.two * 2) + (baseCounts.four * 4));
-        saveTableConfig(generatedTables);
+        setUnsavedChanges(true);
     };
 
 
@@ -292,7 +340,16 @@ export default function DashboardPage() {
                             }`}>
                             {occupancyRate}% Full
                         </div>
-                        <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20" />
+
+                        <button
+                            onClick={handleSave}
+                            disabled={!unsavedChanges}
+                            className={`px-6 py-2 rounded-full font-bold transition-all shadow-sm ${unsavedChanges
+                                ? "bg-black text-white hover:bg-gray-800 hover:scale-105 shadow-md animate-pulse"
+                                : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                        >
+                            {unsavedChanges ? "Save Changes" : "Saved"}
+                        </button>
                     </div>
                 </header>
 
