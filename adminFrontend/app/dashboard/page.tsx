@@ -17,8 +17,6 @@ export default function DashboardPage() {
     const [reservations, setReservations] = useState<any[]>([]);
     const [loadingReservations, setLoadingReservations] = useState(false);
     const [activeTab, setActiveTab] = useState<'map' | 'reservations'>('map');
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
     const apiURL = process.env.NEXT_PUBLIC_API_URL;
 
     // URL normalization
@@ -253,32 +251,6 @@ export default function DashboardPage() {
         }
     };
 
-    const handleDeleteCafe = async () => {
-        if (!cafeId || !cleanAPIURL) return;
-
-        setIsDeleting(true);
-        try {
-            const response = await fetch(`${cleanAPIURL}/cafes/${cafeId}`, {
-                method: 'DELETE',
-            });
-
-            if (response.ok) {
-                // Redirect to onboarding as the cafe is now gone
-                window.location.href = '/onboarding/setup';
-            } else {
-                const err = await response.text();
-                console.error("DEBUG: Delete cafe failed:", response.status, err);
-                alert("Failed to delete cafe. Please try again.");
-                setIsDeleting(false);
-                setShowDeleteModal(false);
-            }
-        } catch (error) {
-            console.error("DEBUG: Error deleting cafe:", error);
-            alert("An error occurred while deleting the cafe.");
-            setIsDeleting(false);
-            setShowDeleteModal(false);
-        }
-    };
 
     const addTable = (size: 2 | 4) => {
         const newTable = {
@@ -407,25 +379,13 @@ export default function DashboardPage() {
                                 console.error('Error signing out:', error);
                             }
                         }}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors border border-transparent hover:border-red-100"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all border border-transparent"
                     >
                         <span>Sign Out</span>
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                             <polyline points="16 17 21 12 16 7"></polyline>
                             <line x1="21" y1="12" x2="9" y2="12"></line>
-                        </svg>
-                    </button>
-
-                    <button
-                        onClick={() => setShowDeleteModal(true)}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 mt-4 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors border-2 border-dashed border-red-200 hover:border-red-300"
-                    >
-                        <span>Delete Cafe Permanently</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 6h18"></path>
-                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
                         </svg>
                     </button>
                 </div>
@@ -853,54 +813,6 @@ export default function DashboardPage() {
                 })()
             }
 
-            {/* Delete Cafe Modal */}
-            {showDeleteModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-red-500/10 backdrop-blur-md animate-in fade-in duration-300">
-                    <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md p-8 border-2 border-red-100 scale-100 animate-in zoom-in-95 duration-200">
-                        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-6 mx-auto">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
-                                <path d="M3 6h18"></path>
-                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                                <line x1="10" y1="11" x2="10" y2="17"></line>
-                                <line x1="14" y1="11" x2="14" y2="17"></line>
-                            </svg>
-                        </div>
-
-                        <h3 className="text-2xl font-bold text-foreground mb-3 text-center">Delete Cafe?</h3>
-                        <p className="text-muted-foreground text-center mb-8 leading-relaxed">
-                            This action is <span className="text-red-600 font-bold uppercase underline">permanent</span>.
-                            All reservations, reviews, and cafe photos will be gone forever.
-                        </p>
-
-                        <div className="flex flex-col gap-3">
-                            <button
-                                onClick={handleDeleteCafe}
-                                disabled={isDeleting}
-                                className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 ${isDeleting ? "bg-red-400 cursor-not-allowed" : "bg-red-600 hover:bg-red-700 shadow-red-500/20"
-                                    }`}
-                            >
-                                {isDeleting ? (
-                                    <>
-                                        <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-                                        <span>Deleting...</span>
-                                    </>
-                                ) : (
-                                    "Yes, Delete Everything"
-                                )}
-                            </button>
-
-                            <button
-                                onClick={() => setShowDeleteModal(false)}
-                                disabled={isDeleting}
-                                className="w-full py-4 rounded-xl font-bold text-muted-foreground hover:bg-muted/50 transition-colors border border-transparent"
-                            >
-                                Nevermind, Keep It
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div >
     );
 }

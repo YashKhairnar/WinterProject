@@ -49,6 +49,7 @@ export default function Home() {
           <div className="flex items-center gap-3 drop-shadow-lg">
             <span className="w-8 h-[2px] bg-primary-foreground/80" />
             <span className="text-sm font-bold tracking-[0.2em] uppercase text-primary-foreground">Welcome to Nook</span>
+            <span className="w-8 h-[2px] bg-primary-foreground/80" />
           </div>
           <h2 className="text-3xl md:text-5xl lg:text-6xl font-black leading-[1.1] tracking-tight text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]">
             Managing your <br className="hidden md:block" />
@@ -91,21 +92,6 @@ export default function Home() {
             >
               Become a Host
             </Link>
-
-            <div className="relative py-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-4 text-muted-foreground/60 font-bold tracking-widest">or continue with</span>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <button className="flex-1 py-4 px-6 rounded-2xl bg-card border border-border flex items-center justify-center hover:bg-muted transition-all duration-300 hover:border-primary/20">
-                <span className="font-bold">Google</span>
-              </button>
-            </div>
           </div>
 
           <footer className="pt-12 text-sm text-muted-foreground/50 font-medium">
