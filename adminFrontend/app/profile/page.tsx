@@ -45,11 +45,11 @@ function EditableText({
     if (isEditing) {
         return (
             <div className="flex flex-col gap-1 w-full max-w-lg relative z-20 my-1 animate-in fade-in zoom-in-95 duration-150">
-                {label && <label className="text-xs text-gray-500 font-bold uppercase">{label}</label>}
+                {label && <label className="text-xs text-muted-foreground font-bold uppercase">{label}</label>}
                 <div className="flex gap-2 items-start">
                     {multiline ? (
                         <textarea
-                            className={`flex-1 border-2 border-black rounded-lg p-3 focus:ring-4 focus:ring-black/5 outline-none bg-white text-gray-900 text-sm leading-relaxed shadow-sm ${inputClassName}`}
+                            className={`flex-1 border-2 border-primary rounded-xl p-3 focus:ring-4 focus:ring-primary/10 outline-none bg-card text-foreground text-sm leading-relaxed shadow-sm ${inputClassName}`}
                             value={tempValue}
                             onChange={(e) => setTempValue(e.target.value)}
                             rows={4}
@@ -58,7 +58,7 @@ function EditableText({
                     ) : (
                         <input
                             type={type === 'number' ? 'number' : 'text'}
-                            className={`flex-1 border-2 border-black rounded-lg p-2 focus:ring-4 focus:ring-black/5 outline-none bg-white text-gray-900 shadow-sm ${inputClassName}`}
+                            className={`flex-1 border-2 border-primary rounded-xl p-2 focus:ring-4 focus:ring-primary/10 outline-none bg-card text-foreground shadow-sm ${inputClassName}`}
                             value={tempValue}
                             onChange={(e) => setTempValue(e.target.value)}
                             autoFocus
@@ -66,10 +66,10 @@ function EditableText({
                         />
                     )}
                     <div className="flex flex-col gap-1 shrink-0">
-                        <button onClick={() => handleSave()} disabled={loading} className="bg-black text-white p-2 rounded-lg hover:bg-gray-800 transition-colors shadow-sm disabled:opacity-50">
+                        <button onClick={() => handleSave()} disabled={loading} className="bg-primary text-primary-foreground p-2 rounded-lg hover:bg-primary/90 transition-all shadow-sm disabled:opacity-50">
                             ✓
                         </button>
-                        <button onClick={() => { setIsEditing(false); setTempValue(value || ""); }} className="bg-white border border-gray-200 text-gray-400 p-2 rounded-lg hover:bg-gray-50 hover:text-gray-600 transition-colors">
+                        <button onClick={() => { setIsEditing(false); setTempValue(value || ""); }} className="bg-card border border-border text-muted-foreground p-2 rounded-lg hover:bg-muted/50 transition-colors">
                             ✕
                         </button>
                     </div>
@@ -82,10 +82,10 @@ function EditableText({
         <div
             onClick={() => setIsEditing(true)}
             title="Click to edit"
-            className={`group relative cursor-pointer border border-transparent hover:border-gray-200 hover:bg-gray-50/50 rounded-lg px-2 -mx-2 transition-all duration-200 ${className}`}
+            className={`group relative cursor-pointer border border-transparent hover:border-border hover:bg-muted/50 rounded-lg px-2 -mx-2 transition-all duration-200 ${className}`}
         >
-            {value ? value : <span className="text-gray-400 italic text-sm">Click to add {label || "info"}</span>}
-            <span className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-gray-400 bg-white shadow-sm border border-gray-100 px-2 py-1 rounded text-xs font-medium transition-all transform scale-95 group-hover:scale-100">
+            {value ? value : <span className="text-muted-foreground/60 italic text-sm">Click to add {label || "info"}</span>}
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-muted-foreground bg-card shadow-sm border border-border px-2 py-1 rounded text-xs font-medium transition-all transform scale-95 group-hover:scale-100">
                 ✎ Edit
             </span>
         </div>
@@ -120,15 +120,15 @@ function EditableAmenities({
 
     if (isEditing) {
         return (
-            <div className="bg-white border border-gray-200 p-4 rounded-xl shadow-sm animate-in fade-in zoom-in-95 duration-150">
+            <div className="bg-card border border-border p-4 rounded-xl shadow-sm animate-in fade-in zoom-in-95 duration-150">
                 <div className="flex flex-wrap gap-2 mb-4">
                     {options.map(opt => (
                         <button
                             key={opt}
                             onClick={() => toggle(opt)}
                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${tempValue.includes(opt)
-                                ? "bg-black text-white border-black"
-                                : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-card text-muted-foreground border-border hover:border-muted-foreground/30"
                                 }`}
                         >
                             {opt}
@@ -136,8 +136,8 @@ function EditableAmenities({
                     ))}
                 </div>
                 <div className="flex justify-end gap-2">
-                    <button onClick={() => setIsEditing(false)} className="text-gray-500 text-sm px-3 py-1.5 hover:bg-gray-50 rounded-lg">Cancel</button>
-                    <button onClick={handleSave} disabled={loading} className="bg-black text-white text-sm px-4 py-1.5 rounded-lg font-medium hover:bg-gray-800 disabled:opacity-50">
+                    <button onClick={() => setIsEditing(false)} className="text-muted-foreground text-sm px-3 py-1.5 hover:bg-muted rounded-lg">Cancel</button>
+                    <button onClick={handleSave} disabled={loading} className="bg-primary text-primary-foreground text-sm px-4 py-1.5 rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50">
                         {loading ? "Saving..." : "Save Amenities"}
                     </button>
                 </div>
@@ -153,139 +153,162 @@ function EditableAmenities({
             <div className="flex flex-wrap gap-2">
                 {value && value.length > 0 ? (
                     value.map((item: string, i: number) => (
-                        <span key={i} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium border border-transparent">
+                        <span key={i} className="px-3 py-1.5 bg-muted text-foreground/80 rounded-lg text-sm font-medium border border-border/50">
                             {item}
                         </span>
                     ))
                 ) : (
-                    <span className="text-gray-400 italic py-1 px-2">No amenities listed.</span>
+                    <span className="text-muted-foreground/60 italic py-1 px-2">No amenities listed.</span>
                 )}
             </div>
-            <span className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 text-gray-400 bg-white shadow-sm border border-gray-100 px-2 py-1 rounded text-xs font-medium pointer-events-none">
+            <span className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 text-muted-foreground bg-card shadow-sm border border-border px-2 py-1 rounded text-xs font-medium pointer-events-none">
                 ✎ Edit List
             </span>
         </div>
     )
 }
 
-function EditablePhotos({
-    value = [], // URLs
+function EditableCoverPhoto({
+    value,
     onSave,
     uploadEndpoint
-}: { value: string[], onSave: (val: string[]) => Promise<void>, uploadEndpoint: string }) {
+}: { value: string | undefined | null, onSave: (val: string) => Promise<void>, uploadEndpoint: string }) {
     const [uploading, setUploading] = useState(false);
-
-    // Hidden file input ref
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
             setUploading(true);
-
             try {
                 const formData = new FormData();
                 formData.append('file', file);
-
-                const res = await fetch(`${cleanAPIURL}/cafes/upload`, {
-                    method: 'POST',
-                    body: formData
-                });
-
+                const res = await fetch(`${cleanAPIURL}/cafes/upload`, { method: 'POST', body: formData });
                 if (res.ok) {
                     const data = await res.json();
                     if (data.url) {
-                        const newPhotos = [...value, data.url];
-                        await onSave(newPhotos); // Auto-save
+                        await onSave(data.url);
                     }
-                } else {
-                    alert("Upload failed");
-                }
-            } catch (err) {
-                console.error(err);
-                alert("Upload error");
-            } finally {
-                setUploading(false);
-                if (fileInputRef.current) fileInputRef.current.value = "";
-            }
+                } else alert("Upload failed");
+            } catch (err) { console.error(err); alert("Upload error"); }
+            finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ""; }
         }
     };
 
-    const handleDelete = async (urlToDelete: string) => {
-        if (confirm("Are you sure you want to remove this photo?")) {
-            const newPhotos = value.filter(url => url !== urlToDelete);
-            await onSave(newPhotos);
-        }
-    }
-
     return (
-        <div className="relative group">
-            {/* Display / List */}
-            <div className="rounded-xl overflow-hidden bg-gray-100 min-h-[250px] relative">
-                {value.length > 0 ? (
-                    // Carousel or Grid? Let's do simple cover image + thumbnails or grid
-                    // Current UI uses one big cover. Let's show big cover + grid below?
-                    // Or just one swappable area. 
-                    // Let's implement full grid edit mode
-                    <div className="w-full h-full relative group/image">
-                        <img src={value[0]} alt="Cover" className="w-full h-full object-cover min-h-[250px]" />
-                        <div className="absolute inset-0 bg-black/0 group-hover/image:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover/image:opacity-100 gap-2">
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                className="hidden"
-                                accept="image/*"
-                                onChange={handleFileChange}
-                            />
-                            <button
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={uploading}
-                                className="bg-white text-black px-4 py-2 rounded-full font-bold shadow-lg hover:scale-105 transition-transform"
-                            >
-                                {uploading ? "Uploading..." : "Change Cover Photo"}
-                            </button>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-2 min-h-[250px]">
-                        <span className="text-4xl">📷</span>
-                        <span>No photos added</span>
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            className="hidden"
-                            accept="image/*"
-                            onChange={handleFileChange}
-                        />
+        <div className="relative group w-full h-[300px] bg-gray-100 relative">
+            {value ? (
+                <>
+                    <img src={value} alt="Cover" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
                         <button
                             onClick={() => fileInputRef.current?.click()}
                             disabled={uploading}
-                            className="mt-2 bg-black text-white px-4 py-2 rounded-lg text-sm font-medium"
+                            className="bg-primary text-primary-foreground px-4 py-2 rounded-full font-bold hover:scale-105 transition-transform"
                         >
-                            {uploading ? "Uploading..." : "Upload Photo"}
+                            {uploading ? "Uploading..." : "Change Cover Photo"}
                         </button>
                     </div>
-                )}
+                </>
+            ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground/60 gap-2">
+                    <span className="text-4xl">📷</span>
+                    <span>No cover photo set</span>
+                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        className="mt-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium"
+                    >
+                        {uploading ? "Uploading..." : "Upload Cover Photo"}
+                    </button>
+                </div>
+            )}
+            <div className="absolute bottom-4 right-4 bg-primary/70 text-primary-foreground text-xs px-2 py-1 rounded backdrop-blur-md">
+                Cover Photo
+            </div>
+        </div>
+    );
+}
+
+function EditableGallery({
+    photos = [],
+    onSave,
+    uploadEndpoint
+}: { photos: string[], onSave: (val: string[]) => Promise<void>, uploadEndpoint: string }) {
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setUploading(true);
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                const res = await fetch(`${cleanAPIURL}/cafes/upload`, { method: 'POST', body: formData });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.url) {
+                        // Append to end
+                        const newPhotos = [...photos, data.url];
+                        await onSave(newPhotos);
+                    }
+                } else alert("Upload failed");
+            } catch (err) { console.error(err); alert("Upload error"); }
+            finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ""; }
+        }
+    };
+
+    const handleDelete = async (indexInGallery: number) => {
+        if (confirm("Remove this photo from gallery?")) {
+            const newPhotos = photos.filter((_, i) => i !== indexInGallery);
+            await onSave(newPhotos);
+        }
+    };
+
+
+
+    return (
+        <div className="space-y-4">
+            <div className="flex justify-between items-center">
+                <h3 className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest">Gallery ({photos.length})</h3>
+                <div>
+                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        className="flex items-center gap-1 text-xs font-bold bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-all shadow-sm"
+                    >
+                        <span>+</span> {uploading ? "..." : "Add Photo"}
+                    </button>
+                </div>
             </div>
 
-            {/* Thumbnails / Extra Photos */}
-            {value.length > 1 && (
-                <div className="flex gap-2 mt-2 overflow-x-auto pb-2">
-                    {value.slice(1).map((url, i) => (
-                        <div key={i} className="relative w-20 h-20 shrink-0 rounded-lg overflow-hidden group/thumb cursor-pointer hover:opacity-80">
+            {photos.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {photos.map((url, i) => (
+                        <div key={i} className="relative aspect-square rounded-xl overflow-hidden group bg-gray-100">
                             <img src={url} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
                             <button
-                                onClick={() => handleDelete(url)}
-                                className="absolute top-1 right-1 bg-red-500 text-white w-5 h-5 rounded-full text-xs flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                                onClick={() => handleDelete(i)}
+                                className="absolute top-2 right-2 bg-destructive text-destructive-foreground w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive shadow-sm"
                             >
                                 ×
                             </button>
                         </div>
                     ))}
                 </div>
+            ) : (
+                <div className="p-8 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-muted-foreground/60 gap-2">
+                    <span className="text-2xl">🖼️</span>
+                    <span className="text-sm">No gallery photos yet</span>
+                </div>
             )}
         </div>
-    )
+    );
 }
 
 // --- Page ---
@@ -357,24 +380,24 @@ export default function CafeProfilePage() {
 
     if (authLoading || loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
         );
     }
 
     if (!cafe) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-                <div className="bg-white p-8 rounded-2xl shadow-sm text-center max-w-md w-full">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+            <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+                <div className="bg-card p-8 rounded-2xl shadow-sm text-center max-w-md w-full border border-border/50">
+                    <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
                         ☕
                     </div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">No Cafe Profile Found</h2>
-                    <p className="text-gray-500 mb-6">You haven't set up your cafe profile yet.</p>
+                    <h2 className="text-xl font-bold text-foreground mb-2">No Cafe Profile Found</h2>
+                    <p className="text-muted-foreground mb-6">You haven't set up your cafe profile yet.</p>
                     <Link
                         href="/onboarding/setup"
-                        className="block w-full bg-black text-white font-medium py-3 rounded-xl hover:bg-gray-800 transition-colors"
+                        className="block w-full bg-primary text-primary-foreground font-medium py-3 rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
                     >
                         Create Cafe Profile
                     </Link>
@@ -384,18 +407,18 @@ export default function CafeProfilePage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 flex">
+        <div className="min-h-screen bg-background flex">
             {/* Sidebar */}
-            <aside className="w-64 hidden md:block bg-white border-r border-gray-200 p-6 fixed h-full z-10">
+            <aside className="w-64 hidden md:block bg-card border-r border-border p-6 fixed h-full z-10">
                 <div className="flex items-center gap-2 mb-8">
-                    <div className="w-8 h-8 rounded-lg bg-black text-white flex items-center justify-center font-bold">C</div>
-                    <span className="font-bold text-xl tracking-tight text-gray-900">Cafe Admin</span>
+                    <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold">C</div>
+                    <span className="font-bold text-xl tracking-tight text-foreground">nook</span>
                 </div>
                 <nav className="space-y-2">
-                    <Link href="/dashboard" className="block px-4 py-3 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors">
+                    <Link href="/dashboard" className="block px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all">
                         Dashboard
                     </Link>
-                    <div className="block px-4 py-3 rounded-lg text-sm font-medium bg-black text-white shadow-lg shadow-black/10">
+                    <div className="block px-4 py-3 rounded-lg text-sm font-medium bg-primary text-primary-foreground shadow-lg shadow-primary/20">
                         Cafe Profile
                     </div>
                 </nav>
@@ -405,19 +428,18 @@ export default function CafeProfilePage() {
             <main className="flex-1 md:ml-64 p-8">
                 <div className="max-w-4xl mx-auto">
                     <div className="mb-6 flex justify-between items-center">
-                        <Link href="/dashboard" className="text-gray-500 hover:text-black flex items-center gap-2 text-sm font-medium">
+                        <Link href="/dashboard" className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm font-medium transition-colors">
                             ← Back to Dashboard
                         </Link>
-                        <div className="text-xs text-gray-400 font-medium bg-gray-100 px-3 py-1 rounded-full">
+                        <div className="text-xs text-muted-foreground/70 font-medium bg-muted px-3 py-1 rounded-full">
                             Click fields to edit
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        {/* Header Image Area with Inline Photo Edit */}
-                        <EditablePhotos
-                            value={cafe.cafe_photos || []}
-                            onSave={(val) => handleUpdate('cafe_photos', val)}
+                    <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+                        <EditableCoverPhoto
+                            value={cafe.cover_photo}
+                            onSave={(val) => handleUpdate('cover_photo', val)}
                             uploadEndpoint={`${API_URL}/cafes/upload`}
                         />
 
@@ -427,23 +449,23 @@ export default function CafeProfilePage() {
                                     <EditableText
                                         value={cafe.name}
                                         onSave={(val) => handleUpdate('name', val)}
-                                        className="text-3xl font-bold text-gray-900 mb-1 block"
+                                        className="text-3xl font-bold text-foreground mb-1 block"
                                         inputClassName="text-2xl font-bold"
                                         label="Cafe Name"
                                     />
-                                    <div className="flex items-center gap-2 text-gray-500 mt-1">
+                                    <div className="flex items-center gap-2 text-muted-foreground mt-1 text-sm">
                                         <span>📍</span>
                                         <EditableText
                                             value={cafe.address}
                                             onSave={(val) => handleUpdate('address', val)}
-                                            className="inline-block hover:bg-gray-50"
+                                            className="inline-block hover:bg-muted/50 rounded"
                                             label="Address"
                                         />
                                         <span>,</span>
                                         <EditableText
                                             value={cafe.city}
                                             onSave={(val) => handleUpdate('city', val)}
-                                            className="inline-block hover:bg-gray-50"
+                                            className="inline-block hover:bg-muted/50 rounded"
                                             label="City"
                                         />
                                     </div>
@@ -453,19 +475,36 @@ export default function CafeProfilePage() {
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                                 <div className="lg:col-span-2 space-y-8">
                                     <section>
-                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">About</h3>
+                                        <h3 className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest mb-3">About</h3>
                                         <EditableText
                                             value={cafe.description}
                                             onSave={(val) => handleUpdate('description', val)}
                                             multiline
-                                            className="text-gray-600 leading-relaxed text-lg block"
+                                            className="text-foreground/80 leading-relaxed text-lg block"
                                             inputClassName="text-lg"
                                             label="Description"
                                         />
                                     </section>
 
                                     <section>
-                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Amenities</h3>
+                                        <EditableGallery
+                                            photos={cafe.cafe_photos || []}
+                                            onSave={(val) => handleUpdate('cafe_photos', val)}
+                                            uploadEndpoint={`${API_URL}/cafes/upload`}
+                                        />
+                                    </section>
+
+                                    <section>
+                                        <h3 className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest mb-3">Menu Photos</h3>
+                                        <EditableGallery
+                                            photos={cafe.menu_photos || []}
+                                            onSave={(val) => handleUpdate('menu_photos', val)}
+                                            uploadEndpoint={`${API_URL}/cafes/upload`}
+                                        />
+                                    </section>
+
+                                    <section>
+                                        <h3 className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest mb-3">Amenities</h3>
                                         <EditableAmenities
                                             value={cafe.amenities || []}
                                             onSave={(val) => handleUpdate('amenities', val)}
@@ -474,32 +513,32 @@ export default function CafeProfilePage() {
                                 </div>
 
                                 <div className="space-y-6">
-                                    <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
-                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Quick Stats</h3>
+                                    <div className="bg-muted p-6 rounded-2xl border border-border/50 shadow-sm">
+                                        <h3 className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest mb-4">Quick Stats</h3>
                                         <div className="space-y-4">
                                             <div className="flex justify-between items-center">
-                                                <span className="text-gray-600">2-Seat Tables</span>
+                                                <span className="text-muted-foreground">2-Seat Tables</span>
                                                 <EditableText
                                                     value={cafe.two_tables}
                                                     onSave={(val) => handleUpdate('two_tables', val)}
-                                                    className="font-bold text-gray-900"
+                                                    className="font-bold text-foreground"
                                                     label="2-Seat Tables"
                                                     type="number"
                                                 />
                                             </div>
                                             <div className="flex justify-between items-center">
-                                                <span className="text-gray-600">4-Seat Tables</span>
+                                                <span className="text-muted-foreground">4-Seat Tables</span>
                                                 <EditableText
                                                     value={cafe.four_tables}
                                                     onSave={(val) => handleUpdate('four_tables', val)}
-                                                    className="font-bold text-gray-900"
+                                                    className="font-bold text-foreground"
                                                     label="4-Seat Tables"
                                                     type="number"
                                                 />
                                             </div>
                                             <div className="flex justify-between items-center">
-                                                <span className="text-gray-600">Rating</span>
-                                                <span className="font-bold text-gray-900 flex items-center gap-1">
+                                                <span className="text-muted-foreground">Rating</span>
+                                                <span className="font-bold text-accent flex items-center gap-1">
                                                     ★ {cafe.avg_rating || '-'}
                                                 </span>
                                             </div>
@@ -507,44 +546,55 @@ export default function CafeProfilePage() {
                                     </div>
 
                                     <div className="space-y-3">
-                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Connect</h3>
+                                        <h3 className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest">Connect</h3>
 
-                                        <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group">
-                                            <span className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">🌐</span>
+                                        <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group">
+                                            <span className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">🌐</span>
                                             <div className="flex-1 min-w-0">
                                                 <EditableText
                                                     value={cafe.website_link}
                                                     onSave={(val) => handleUpdate('website_link', val)}
-                                                    className="font-medium text-gray-600 hover:text-black truncate block"
+                                                    className="font-medium text-foreground/80 hover:text-foreground truncate block"
                                                     label="Website Link"
                                                 />
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group">
-                                            <span className="w-8 h-8 rounded-full bg-pink-50 text-pink-600 flex items-center justify-center shrink-0">📸</span>
+                                        <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group">
+                                            <span className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">📸</span>
                                             <div className="flex-1 min-w-0">
                                                 <EditableText
                                                     value={cafe.instagram_url}
                                                     onSave={(val) => handleUpdate('instagram_url', val)}
-                                                    className="font-medium text-gray-600 hover:text-black truncate block"
+                                                    className="font-medium text-foreground/80 hover:text-foreground truncate block"
                                                     label="Instagram URL"
                                                 />
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group">
-                                            <span className="w-8 h-8 rounded-full bg-green-50 text-green-600 flex items-center justify-center shrink-0">📞</span>
+                                        <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group">
+                                            <span className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">📞</span>
                                             <div className="flex-1 min-w-0">
                                                 <EditableText
                                                     value={cafe.phone_number}
                                                     onSave={(val) => handleUpdate('phone_number', val)}
-                                                    className="font-medium text-gray-600 hover:text-black truncate block"
+                                                    className="font-medium text-foreground/80 hover:text-foreground truncate block"
                                                     label="Phone Number"
                                                 />
                                             </div>
                                         </div>
 
+                                        <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group">
+                                            <span className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">📋</span>
+                                            <div className="flex-1 min-w-0">
+                                                <EditableText
+                                                    value={cafe.menu_link}
+                                                    onSave={(val) => handleUpdate('menu_link', val)}
+                                                    className="font-medium text-foreground/80 hover:text-foreground truncate block"
+                                                    label="Menu Link"
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

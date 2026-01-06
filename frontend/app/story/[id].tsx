@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from "react";
 import AntDesign from "@expo/vector-icons/AntDesign";
+import { Colors } from "../../constants/theme";
 
 const { width, height } = Dimensions.get('window');
 
@@ -57,7 +58,7 @@ export default function StoryView() {
                         <Text style={styles.timeAgo}>2h</Text>
                     </View>
                     <Pressable onPress={() => router.back()}>
-                        <AntDesign name="close" size={24} color="#fff" />
+                        <AntDesign name="close" size={24} color={Colors.white} />
                     </Pressable>
                 </View>
             </View>
@@ -71,7 +72,7 @@ export default function StoryView() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#000',
+        backgroundColor: Colors.backgroundDark,
     },
     image: {
         width: width,
@@ -87,14 +88,14 @@ const styles = StyleSheet.create({
     },
     progressContainer: {
         height: 2,
-        backgroundColor: 'rgba(255,255,255,0.3)',
+        backgroundColor: Colors.white + '4D', // 30% opacity
         borderRadius: 1,
         marginBottom: 16,
         overflow: 'hidden',
     },
     progressBar: {
         height: '100%',
-        backgroundColor: '#fff',
+        backgroundColor: Colors.white,
     },
     header: {
         flexDirection: 'row',
@@ -112,12 +113,12 @@ const styles = StyleSheet.create({
         borderRadius: 16,
     },
     userName: {
-        color: '#fff',
+        color: Colors.white,
         fontWeight: '600',
         fontSize: 14,
     },
     timeAgo: {
-        color: 'rgba(255,255,255,0.6)',
+        color: Colors.white + '99', // 60% opacity
         fontSize: 14,
     },
     touchArea: {

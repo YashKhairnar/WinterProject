@@ -9,7 +9,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Cafe Admin | Manage Your Business",
+  title: "nook | Manage Your Business",
   description: "Comprehensive admin dashboard for cafe owners",
 };
 

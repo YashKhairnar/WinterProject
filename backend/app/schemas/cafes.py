@@ -1,7 +1,7 @@
 # backend/app/schemas/cafes.py
 from pydantic import BaseModel, HttpUrl, Field
 from uuid import UUID
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Union, Any, Optional
 import re
 
 
@@ -36,8 +36,9 @@ class WorkingHoursDay(BaseModel):
     closed: bool = False
 
 class TableConfigItem(BaseModel):
-    id: str
+    id: Union[str, int]
     size: int = Field(..., ge=1)
+    seats: int = 0
     status: Optional[str] = None
 
 class CafeBase(BaseModel):
@@ -54,20 +55,30 @@ class CafeBase(BaseModel):
     instagram_url: Optional[str] = None
     two_tables: Optional[int] = Field(None, ge=0)
     four_tables: Optional[int] = Field(None, ge=0)
-    table_config: List[TableConfigItem] = Field(default_factory=list)
+    table_config: Union[List[TableConfigItem], Dict[str, Any]] = Field(default_factory=list)
     amenities: List[str] = Field(default_factory=list)
     working_hours: Dict[str, WorkingHoursDay] = Field(default_factory=dict)
     cafe_photos: List[str] = Field(default_factory=list)
+    cover_photo: Optional[str] = None
     menu_photos: List[str] = Field(default_factory=list)
 
 class CafeCreate(CafeBase):
     pass
+
+class StoryInfo(BaseModel):
+    id: UUID
+    image_url: str
+    vibe: Optional[str] = None
+    visit_purpose: Optional[str] = None
+    created_at: Any # Using Any to handle datetime/string conversion easily
 
 class CafePublic(CafeBase):
     id: UUID
     avg_rating: Optional[float] = None
     occupancy_level: Optional[int] = 0
     onboarding_completed: bool = False
+    has_active_stories: bool = False
+    active_stories: List[StoryInfo] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
@@ -84,10 +95,11 @@ class CafeUpdate(BaseModel):
     menu_link: Optional[str] = None
     instagram_url: Optional[str] = None
     cafe_photos: Optional[List[str]] = None
+    cover_photo: Optional[str] = None
     menu_photos: Optional[List[str]] = None
     amenities: Optional[List[str]] = None
     working_hours: Optional[Dict[str, WorkingHoursDay]] = None
     two_tables: Optional[int] = None
     four_tables: Optional[int] = None
-    table_config: Optional[List[TableConfigItem]] = None
+    table_config: Optional[Union[List[TableConfigItem], Dict[str, Any]]] = None
     occupancy_level: Optional[int] = None

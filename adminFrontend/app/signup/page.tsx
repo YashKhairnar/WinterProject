@@ -75,16 +75,13 @@ export default function SignupPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-            <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md animate-in fade-in zoom-in-95 duration-300">
+        <div className="min-h-screen flex items-center justify-center bg-background p-4">
+            <div className="bg-card p-8 rounded-2xl shadow-xl w-full max-w-md animate-in fade-in zoom-in-95 duration-300 border border-border/50">
                 <div className="text-center mb-8">
-                    <div className="w-12 h-12 bg-black text-white rounded-xl flex items-center justify-center text-xl font-bold mx-auto mb-4">
-                        C
-                    </div>
-                    <h1 className="text-2xl font-bold text-gray-900">
+                    <h1 className="text-2xl font-bold text-foreground">
                         {step === 'signup' ? "Create Account" : "Verify Email"}
                     </h1>
-                    <p className="text-gray-500 mt-1">
+                    <p className="text-muted-foreground mt-1">
                         {step === 'signup'
                             ? "Join us to manage your cafe"
                             : `Enter the code sent to ${email}`
@@ -101,11 +98,11 @@ export default function SignupPage() {
                         )}
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">Email Address</label>
+                            <label className="text-sm font-medium text-foreground/80">Email Address</label>
                             <input
                                 type="email"
                                 required
-                                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:ring-2 focus:ring-black/20 focus:border-black transition-all"
+                                className="w-full px-4 py-3 rounded-xl bg-muted/50 border border-border outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-foreground"
                                 placeholder="you@example.com"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
@@ -113,11 +110,11 @@ export default function SignupPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">Phone Number</label>
+                            <label className="text-sm font-medium text-foreground/80">Phone Number</label>
                             <input
                                 type="tel"
                                 required
-                                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:ring-2 focus:ring-black/20 focus:border-black transition-all"
+                                className="w-full px-4 py-3 rounded-xl bg-muted/50 border border-border outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-foreground"
                                 placeholder="+1234567890"
                                 value={phone}
                                 onChange={(e) => setPhone(e.target.value)}
@@ -125,11 +122,11 @@ export default function SignupPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">Password</label>
+                            <label className="text-sm font-medium text-foreground/80">Password</label>
                             <input
                                 type="password"
                                 required
-                                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:ring-2 focus:ring-black/20 focus:border-black transition-all"
+                                className="w-full px-4 py-3 rounded-xl bg-muted/50 border border-border outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-foreground"
                                 placeholder="Min 8 chars, 1 number, 1 special class"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
@@ -139,15 +136,15 @@ export default function SignupPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-3.5 rounded-xl bg-black text-white font-bold hover:bg-gray-800 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-bold hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/10"
                         >
                             {loading ? "Sending Code..." : "Sign Up"}
                         </button>
 
                         <div className="text-center pt-2">
-                            <p className="text-sm text-gray-500">
+                            <p className="text-sm text-muted-foreground">
                                 Already have an account?{" "}
-                                <Link href="/login" className="text-black font-semibold hover:underline">
+                                <Link href="/login" className="text-accent font-semibold hover:underline">
                                     Log in
                                 </Link>
                             </p>
@@ -162,11 +159,11 @@ export default function SignupPage() {
                         )}
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">Verification Code</label>
+                            <label className="text-sm font-medium text-foreground/80">Verification Code</label>
                             <input
                                 type="text"
                                 required
-                                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:ring-2 focus:ring-black/20 focus:border-black transition-all font-mono text-center text-lg tracking-widest"
+                                className="w-full px-4 py-3 rounded-xl bg-muted/50 border border-border outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-mono text-center text-lg tracking-widest text-foreground"
                                 placeholder="123456"
                                 value={code}
                                 onChange={(e) => setCode(e.target.value)}
@@ -176,7 +173,7 @@ export default function SignupPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-3.5 rounded-xl bg-black text-white font-bold hover:bg-gray-800 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-bold hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/10"
                         >
                             {loading ? "Verifying..." : "Confirm Account"}
                         </button>
@@ -184,7 +181,7 @@ export default function SignupPage() {
                         <button
                             type="button"
                             onClick={() => setStep('signup')}
-                            className="w-full py-2 text-sm text-gray-500 hover:text-black transition-colors"
+                            className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
                         >
                             Back to Sign Up
                         </button>

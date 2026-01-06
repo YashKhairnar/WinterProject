@@ -20,6 +20,18 @@ class UserPreferences(BaseModel):
     amenities: List[str] = []
     push_notifications: Optional[bool] = None
 
+class UserUpdate(UserPreferences):
+    username: Optional[str] = None
+
+class SavedCafe(BaseModel):
+    id: UUID
+    name: str
+    address: str
+    cafe_photos: List[str] = [] 
+    
+    class Config:
+        from_attributes = True
+
 class UserPublic(UserBase):
     id: UUID
     cognito_sub: str
@@ -27,5 +39,6 @@ class UserPublic(UserBase):
     total_reviews: int = 0
     total_checkins: int = 0
     push_notifications: Optional[bool] = None
+    saved_cafes: List[SavedCafe] = []
     class Config:
         from_attributes = True

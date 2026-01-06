@@ -37,14 +37,11 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-            <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md animate-in fade-in zoom-in-95 duration-300">
+        <div className="min-h-screen flex items-center justify-center bg-background p-4">
+            <div className="bg-card p-8 rounded-2xl shadow-xl w-full max-w-md animate-in fade-in zoom-in-95 duration-300 border border-border/50">
                 <div className="text-center mb-8">
-                    <div className="w-12 h-12 bg-black text-white rounded-xl flex items-center justify-center text-xl font-bold mx-auto mb-4">
-                        C
-                    </div>
-                    <h1 className="text-2xl font-bold text-gray-900">Welcome Back</h1>
-                    <p className="text-gray-500 mt-1">Sign in to manage your cafe</p>
+                    <h1 className="text-2xl font-bold text-foreground">Welcome Back</h1>
+                    <p className="text-muted-foreground mt-1">Sign in to manage your cafe</p>
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-4">
@@ -55,11 +52,11 @@ export default function LoginPage() {
                     )}
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Email Address</label>
+                        <label className="text-sm font-medium text-foreground/80">Email Address</label>
                         <input
                             type="email"
                             required
-                            className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:ring-2 focus:ring-black/20 focus:border-black transition-all"
+                            className="w-full px-4 py-3 rounded-xl bg-muted/50 border border-border outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-foreground"
                             placeholder="you@example.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
@@ -67,11 +64,11 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Password</label>
+                        <label className="text-sm font-medium text-foreground/80">Password</label>
                         <input
                             type="password"
                             required
-                            className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:ring-2 focus:ring-black/20 focus:border-black transition-all"
+                            className="w-full px-4 py-3 rounded-xl bg-muted/50 border border-border outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-foreground"
                             placeholder="••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -81,15 +78,15 @@ export default function LoginPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3.5 rounded-xl bg-black text-white font-bold hover:bg-gray-800 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-bold hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/10"
                     >
                         {loading ? "Signing in..." : "Sign In"}
                     </button>
 
                     <div className="text-center pt-2">
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-muted-foreground">
                             New here?{" "}
-                            <Link href="/signup" className="text-black font-semibold hover:underline">
+                            <Link href="/signup" className="text-accent font-semibold hover:underline">
                                 Create an account
                             </Link>
                         </p>

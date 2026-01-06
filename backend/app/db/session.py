@@ -36,8 +36,10 @@ if not DATABASE_URL:
             f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
         )
     else:
-        # Final fallback for local dev if .env is missing (though we just created it)
-        DATABASE_URL = "postgresql://cafe_app_db_io01_user:LobkcQFIc2rhc7UdQ0qkxi0SUYwS15aY@dpg-d5cne12li9vc73cri860-a.oregon-postgres.render.com/cafe_app_db_io01"
+        # If no configuration is found, and we're not in a dev environment with a DATABASE_URL, raise error
+        raise RuntimeError(
+            "Database configuration not found. Set DATABASE_URL or DB_HOST/DB_NAME/DB_USER/DB_SECRET_ARN."
+        )
 
 engine = create_engine(
     DATABASE_URL,

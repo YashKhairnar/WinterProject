@@ -1,7 +1,7 @@
 # backend/app/db/models.py
 import uuid
 from typing import List, Optional
-
+from datetime import timedelta
 from sqlalchemy import (
     Column,
     String,
@@ -12,7 +12,10 @@ from sqlalchemy import (
     DateTime,
     func,
     Boolean,
+    Table,
+    ForeignKey
 )
+from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.db.base import Base
 
@@ -21,6 +24,14 @@ from sqlalchemy import Column, String, Text, Integer, Float, Boolean, DateTime, 
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.dialects.postgresql import ARRAY
 import uuid
+
+# Association Table
+user_saved_cafes = Table(
+    'user_saved_cafes',
+    Base.metadata,
+    Column('user_sub', String, ForeignKey('users.cognito_sub', ondelete='CASCADE'), primary_key=True),
+    Column('cafe_id', UUID(as_uuid=True), ForeignKey('cafes.id', ondelete='CASCADE'), primary_key=True)
+)
 
 class Cafe(Base):
     __tablename__ = "cafes"
@@ -39,6 +50,7 @@ class Cafe(Base):
     longitude = Column(Float, nullable=False)
 
     cafe_photos = Column(ARRAY(String), nullable=False, server_default="{}")
+    cover_photo = Column(String)
     menu_photos = Column(ARRAY(String), nullable=False, server_default="{}")
 
     menu_link = Column(String)
@@ -54,6 +66,7 @@ class Cafe(Base):
     avg_rating = Column(Float)
 
     working_hours = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    occupancy_level = Column(Integer, default=0)
     onboarding_completed = Column(Boolean, nullable=False, server_default=text("false"))
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -91,54 +104,89 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+    # Relationships
+    saved_cafes = relationship("Cafe", secondary=user_saved_cafes, backref="saved_by_users")
+
 
 # # --------------------------- LIVE UPDATES MODEL ---------------------------
-# class LiveUpdates(Base):
-#     __tablename__ = 'liveUpdates'
-
-#     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-
-#     cafe_id = Column(UUID(as_uuid=True), nullable=False)
-#     user_id = Column(UUID(as_uuid=True), nullable=False)
-
-#     image_url = Column(Text, nullable=False)
-
-#     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-#     expires_at = Column(created_at + timedelta(days=1), nullable=False)
-
-
-# # --------------------------- REVIEWS MODEL ---------------------------
-# class Reviews(Base):
-#     __tablename__ = 'reviews'
-
-#     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-
-#     cafe_id = Column(UUID(as_uuid=True), nullable=False)
-#     user_id = Column(UUID(as_uuid=True), nullable=False)
-#     rating = Column(Integer, nullable=False)
-#     review_text = Column(Text, nullable=False)
-
-#     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-#     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-
-# --------------------------- OCCUPANCY MODEL ---------------------------
-class Occupancy(Base):
-    __tablename__ = 'occupancy'
+class LiveUpdates(Base):
+    __tablename__ = 'liveUpdates'
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
-    cafe_id = Column(UUID(as_uuid=True), nullable=False)
+    cafe_id = Column(UUID(as_uuid=True), ForeignKey('cafes.id', ondelete='CASCADE'), nullable=False)
+    user_id = Column(UUID(as_uuid=True), nullable=False)
 
-    two_tables = Column(Integer, nullable=False)
-    four_tables = Column(Integer, nullable=False)
-    total_seats = Column(Integer, nullable=False)
+    image_url = Column(Text, nullable=False)
+    vibe = Column(String, nullable=True)
+    visit_purpose = Column(String, nullable=True)
 
-    two_tables_occupied = Column(Integer, nullable=False)
-    four_tables_occupied = Column(Integer, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    expires_at = Column(DateTime(timezone=True), server_default=func.now() + timedelta(days=1), nullable=False)
 
-    two_seats_occupied = Column(Integer, nullable=False)
-    four_seats_occupied = Column(Integer, nullable=False)
+
+# --------------------------- REVIEWS MODEL ---------------------------
+class Review(Base):
+    __tablename__ = 'reviews'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    cafe_id = Column(UUID(as_uuid=True), ForeignKey('cafes.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_sub = Column(String, ForeignKey('users.cognito_sub', ondelete='CASCADE'), nullable=False, index=True)
+    rating = Column(Integer, nullable=False)
+    review_text = Column(Text, nullable=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User", backref="reviews")
+    cafe = relationship("Cafe", backref="reviews")
+# --------------------------- CHECKIN MODEL ---------------------------
+class Checkin(Base):
+    __tablename__ = "checkins"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_sub = Column(String, ForeignKey('users.cognito_sub', ondelete='CASCADE'), nullable=False, index=True)
+    cafe_id = Column(UUID(as_uuid=True), ForeignKey('cafes.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    user = relationship("User", backref="checkins")
+    cafe = relationship("Cafe", backref="checkins")
+
+# --------------------------- OCCUPANCY HISTORY MODEL ---------------------------
+class OccupancyHistory(Base):
+    __tablename__ = "occupancy_history"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cafe_id = Column(UUID(as_uuid=True), ForeignKey('cafes.id', ondelete='CASCADE'), nullable=False, index=True)
+    occupancy_level = Column(Integer, nullable=False) # 0-100
+    
+    # Store table counts for more detail if needed later
+    two_tables_occupied = Column(Integer, default=0)
+    four_tables_occupied = Column(Integer, default=0)
+    table_config = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    cafe = relationship("Cafe", backref="occupancy_history")
+
+# --------------------------- RESERVATION MODEL ---------------------------
+class Reservation(Base):
+    __tablename__ = "reservations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cafe_id = Column(UUID(as_uuid=True), ForeignKey('cafes.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_sub = Column(String, ForeignKey('users.cognito_sub', ondelete='CASCADE'), nullable=False, index=True)
+    
+    reservation_date = Column(DateTime(timezone=True), nullable=False)
+    reservation_time = Column(String, nullable=False)  # e.g., "14:00"
+    party_size = Column(Integer, nullable=False, default=2)
+    special_request = Column(Text)
+    
+    status = Column(String, nullable=False, default="pending")  # pending, confirmed, cancelled, completed
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User", backref="reservations")
+    cafe = relationship("Cafe", backref="reservations")

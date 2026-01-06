@@ -25,71 +25,94 @@ export default function Home() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse flex flex-col items-center gap-4">
-          <div className="w-12 h-12 bg-gray-200 rounded-xl" />
-          <div className="h-4 w-24 bg-gray-200 rounded" />
+          <div className="w-12 h-12 bg-muted rounded-xl" />
+          <div className="h-4 w-24 bg-muted rounded" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background relative overflow-hidden">
-      {/* Subtle background glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-white/5 rounded-full blur-[120px] pointer-events-none" />
+    <div className="min-h-screen flex flex-col md:flex-row bg-background overflow-hidden font-sans">
+      {/* Hero Section (Left) */}
+      <div className="relative w-full md:w-1/2 lg:w-[60%] h-[40vh] md:h-screen overflow-hidden group">
+        <img
+          src="/hero.png"
+          alt="Cozy Cafe"
+          className="w-full h-full object-cover transition-transform duration-10000 group-hover:scale-110 ease-out brightness-[0.8]"
+        />
+        {/* Much stronger gradient for desktop and mobile */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent md:bg-gradient-to-r md:from-black/80 md:via-black/30 md:to-transparent" />
 
-      <main className="z-10 w-full max-w-md px-6 text-center space-y-10">
-
-        {/* Logo / Header */}
-        <div className="space-y-4 animate-in fade-in zoom-in duration-500">
-          <div className="w-16 h-16 bg-white rounded-2xl mx-auto flex items-center justify-center border border-gray-100 shadow-xl shadow-black/5">
-            <span className="text-3xl">☕</span>
+        {/* Hero Content Overlay */}
+        <div className="absolute bottom-8 left-8 right-8 md:bottom-16 md:left-16 text-white max-w-lg space-y-4 animate-in fade-in slide-in-from-left-8 duration-1000">
+          <div className="flex items-center gap-3 drop-shadow-lg">
+            <span className="w-8 h-[2px] bg-primary-foreground/80" />
+            <span className="text-sm font-bold tracking-[0.2em] uppercase text-primary-foreground">Welcome to Nook</span>
           </div>
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900">
-            Cafe Admin
-          </h1>
-          <p className="text-gray-500 text-lg">
-            Manage your coffee shop with ease.
+          <h2 className="text-3xl md:text-5xl lg:text-6xl font-black leading-[1.1] tracking-tight text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]">
+            Managing your <br className="hidden md:block" />
+            perfect nook, <br className="hidden md:block" />
+            <span className="text-accent italic font-serif opacity-95 underline decoration-accent/60 underline-offset-8">made simple.</span>
+          </h2>
+          <p className="text-white/95 text-lg md:text-xl font-medium tracking-tight max-w-sm hidden md:block drop-shadow-lg">
+            Join the collective of premier hosts providing the ultimate focus spaces.
           </p>
         </div>
+      </div>
 
-        {/* Auth Actions */}
-        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
-          <Link
-            href="/login"
-            className="block w-full py-4 rounded-xl bg-gray-900 text-white font-bold text-lg hover:bg-black transition-colors active:scale-[0.98] shadow-lg shadow-gray-900/10"
-          >
-            Log In
-          </Link>
+      {/* Auth Section (Right) */}
+      <main className="w-full md:w-1/2 lg:w-[40%] flex items-center justify-center p-8 md:p-16 lg:p-24 relative z-10 bg-background md:shadow-[-50px_0_100px_-20px_rgba(0,0,0,0.1)]">
+        <div className="w-full max-w-sm space-y-12 animate-in fade-in slide-in-from-right-8 duration-1000 delay-200">
 
-          <Link
-            href="/signup"
-            className="block w-full py-4 rounded-xl bg-white border border-gray-200 text-gray-900 font-semibold text-lg hover:bg-gray-50 transition-colors active:scale-[0.98] shadow-sm"
-          >
-            Sign Up
-          </Link>
-
-          <div className="pt-4 flex items-center gap-4 text-sm text-muted-foreground">
-            <div className="h-[1px] bg-border flex-1" />
-            <span>or continue with</span>
-            <div className="h-[1px] bg-border flex-1" />
+          {/* Logo & Intro */}
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h1 className="text-5xl font-black text-foreground tracking-tighter">nook</h1>
+              <p className="text-muted-foreground/80 font-medium text-lg leading-relaxed">
+                Your perfect nook, nearby.
+              </p>
+            </div>
           </div>
 
-          <div className="flex gap-4 justify-center">
-            {/* Mock Social Buttons */}
-            <button className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
-              G
-            </button>
-            <button className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
-              A
-            </button>
+          {/* Auth Actions */}
+          <div className="space-y-4">
+            <Link
+              href="/login"
+              className="group flex items-center justify-center gap-3 w-full py-5 rounded-2xl bg-primary text-primary-foreground font-black text-lg hover:bg-primary/95 transition-all active:scale-[0.98] shadow-2xl shadow-primary/20"
+            >
+              Log In
+              <span className="group-hover:translate-x-1 transition-transform">→</span>
+            </Link>
+
+            <Link
+              href="/signup"
+              className="block w-full py-5 rounded-2xl bg-card border-2 border-border text-foreground font-bold text-center text-lg hover:bg-muted/50 transition-all active:scale-[0.98]"
+            >
+              Become a Host
+            </Link>
+
+            <div className="relative py-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-4 text-muted-foreground/60 font-bold tracking-widest">or continue with</span>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <button className="flex-1 py-4 px-6 rounded-2xl bg-card border border-border flex items-center justify-center hover:bg-muted transition-all duration-300 hover:border-primary/20">
+                <span className="font-bold">Google</span>
+              </button>
+            </div>
           </div>
+
+          <footer className="pt-12 text-sm text-muted-foreground/50 font-medium">
+            &copy; {new Date().getFullYear()} Nook Inc.
+          </footer>
         </div>
-
       </main>
-
-      <footer className="absolute bottom-6 text-xs text-muted-foreground">
-        &copy; {new Date().getFullYear()} Cafe Admin Portal
-      </footer>
     </div>
   );
 }
