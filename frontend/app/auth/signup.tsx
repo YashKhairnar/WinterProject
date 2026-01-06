@@ -4,6 +4,7 @@ import { Link, Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { signUp, confirmSignUp } from 'aws-amplify/auth';
 import AntDesign from "@expo/vector-icons/AntDesign";
+import { Colors, Shadows } from "../../constants/theme";
 
 
 export default function Signup() {
@@ -82,7 +83,7 @@ export default function Signup() {
     return (
         <View style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
-            <StatusBar style="light" />
+            <StatusBar style="dark" />
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -91,7 +92,7 @@ export default function Signup() {
                 <View style={styles.headerContainer}>
                     <Text style={styles.title}>{step === 1 ? 'Create Account' : 'Confirm Email'}</Text>
                     <Text style={styles.subtitle}>
-                        {step === 1 ? 'Join us to find your best spot' : `Enter the code sent to ${email}`}
+                        {step === 1 ? 'Your perfect nook, nearby.' : `Enter the code sent to ${email}`}
                     </Text>
                 </View>
 
@@ -158,8 +159,8 @@ export default function Signup() {
                                 <Text style={styles.buttonTextPrimary}>{loading ? "Verifying..." : "Confirm"}</Text>
                             </Pressable>
 
-                            <Pressable style={[styles.buttonPrimary, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#333', marginTop: 10 }]} onPress={() => setStep(1)}>
-                                <Text style={[styles.buttonTextPrimary, { color: '#fff' }]}>Back</Text>
+                            <Pressable style={[styles.buttonPrimary, { backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.borderLight, marginTop: 10 }]} onPress={() => setStep(1)}>
+                                <Text style={[styles.buttonTextPrimary, { color: Colors.primary }]}>Back</Text>
                             </Pressable>
                         </>
                     )}
@@ -173,7 +174,7 @@ export default function Signup() {
                             </View>
 
                             <Pressable style={styles.buttonSocial}>
-                                <AntDesign name="google" size={24} color="white" />
+                                <AntDesign name="google" size={24} color={Colors.primary} />
                                 <Text style={styles.buttonTextSocial}>Sign up with Google</Text>
                             </Pressable>
                         </>
@@ -196,7 +197,7 @@ export default function Signup() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#0A0A0A",
+        backgroundColor: Colors.backgroundLight,
     },
     contentContainer: {
         flex: 1,
@@ -209,12 +210,12 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 32,
         fontWeight: "800",
-        color: "#FFFFFF",
+        color: Colors.primary,
         marginBottom: 8,
     },
     subtitle: {
         fontSize: 16,
-        color: "#888888",
+        color: Colors.textSecondary,
     },
     formContainer: {
         gap: 20,
@@ -224,29 +225,31 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     label: {
-        color: "#CCCCCC",
+        color: Colors.primary,
         fontSize: 14,
         fontWeight: "600",
         marginLeft: 4,
+        opacity: 0.8,
     },
     input: {
-        backgroundColor: "#1A1A1A",
+        backgroundColor: Colors.white,
         borderRadius: 12,
         padding: 16,
-        color: "#FFFFFF",
+        color: Colors.primary,
         fontSize: 16,
         borderWidth: 1,
-        borderColor: "#333333",
+        borderColor: Colors.borderLight,
     },
     buttonPrimary: {
-        backgroundColor: "#FFFFFF",
+        backgroundColor: Colors.primary,
         paddingVertical: 18,
         borderRadius: 16,
         alignItems: "center",
         marginTop: 12,
+        ...Shadows.medium,
     },
     buttonTextPrimary: {
-        color: "#000000",
+        color: Colors.white,
         fontSize: 16,
         fontWeight: "700",
     },
@@ -260,14 +263,14 @@ const styles = StyleSheet.create({
     dividerLine: {
         flex: 1,
         height: 1,
-        backgroundColor: "#333333",
+        backgroundColor: Colors.borderLight,
     },
     dividerText: {
-        color: "#666666",
+        color: Colors.textSecondary,
         fontSize: 14,
     },
     buttonSocial: {
-        backgroundColor: "transparent",
+        backgroundColor: Colors.white,
         paddingVertical: 16,
         borderRadius: 16,
         alignItems: "center",
@@ -275,10 +278,10 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         gap: 12,
         borderWidth: 1,
-        borderColor: "#333333",
+        borderColor: Colors.borderLight,
     },
     buttonTextSocial: {
-        color: "#FFFFFF",
+        color: Colors.primary,
         fontSize: 16,
         fontWeight: "600",
     },
@@ -287,11 +290,11 @@ const styles = StyleSheet.create({
         justifyContent: "center",
     },
     footerText: {
-        color: "#888888",
+        color: Colors.textSecondary,
         fontSize: 14,
     },
     linkText: {
-        color: "#FFFFFF",
+        color: Colors.cta,
         fontSize: 14,
         fontWeight: "700",
     },

@@ -10,15 +10,17 @@ import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSavedCafes } from "../context/SavedCafesContext";
-import { DUMMY_CAFES } from "../data/cafes";
 import { signOut, fetchUserAttributes } from 'aws-amplify/auth';
+import { getImageUrl } from "../utils/image";
+import { Colors, Shadows } from "../constants/theme";
+import { logger } from "../utils/logger";
 
 
 export default function Profile() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
-    const { savedCafeIds, toggleSaved } = useSavedCafes();
-    const savedCafesList = DUMMY_CAFES.filter(c => savedCafeIds.includes(c.id));
+    const { savedCafes, toggleSaved } = useSavedCafes();
+    const savedCafesList = savedCafes;
 
     interface User {
         id: string;
@@ -42,45 +44,9 @@ export default function Profile() {
         name: 'Loading...',
         handle: '...'
     });
+    const [updates, setUpdates] = useState<any[]>([]);
     const apiUrl = process.env.EXPO_PUBLIC_API_URL;
     const [updated, setUpdated] = useState(false);
-
-    const loadUserInfo = async () => {
-        try {
-            const attributes = await fetchUserAttributes();
-            const name = attributes.name || attributes.email?.split('@')[0] || 'User';
-            const handle = attributes.email || '@user';
-
-            //create a user in the Users Table
-            const response = await fetch(`${apiUrl}/users/${attributes.sub}`);
-            const data = await response.json();
-            setUser(data);
-
-            // Update profile state from backend data
-            if (data) {
-                setUserProfile(prev => ({
-                    ...prev,
-                    name: data.username || name,
-                    handle: data.email || handle
-                }));
-                if (data.preferences) {
-                    setPreferences(prev => ({
-                        ...prev,
-                        ...data.preferences,
-                        // Map backend dietary_preferences to frontend dietary
-                        dietary: data.preferences.dietary_preferences || prev.dietary
-                    }));
-                }
-            }
-        } catch (error) {
-            console.log('Error fetching user info', error);
-            setUserProfile(prev => ({ ...prev, name: 'Guest', handle: '@guest' }));
-        }
-    };
-
-    useEffect(() => {
-        loadUserInfo();
-    }, [updated]);
 
     // Preferences State
     const [preferences, setPreferences] = useState<{
@@ -103,8 +69,96 @@ export default function Profile() {
         amenities: ['WiFi']
     });
 
+    const loadUserInfo = async () => {
+        try {
+            const attributes = await fetchUserAttributes();
+            const name = attributes.name || attributes.email?.split('@')[0] || 'User';
+            const handle = attributes.email || '@user';
+
+            logger.info('Profile', 'Loading user info', { sub: attributes.sub });
+
+            // Fetch user from Users Table
+            logger.logFetch(`${apiUrl}/users/${attributes.sub}`);
+            const response = await fetch(`${apiUrl}/users/${attributes.sub}`);
+
+            let data;
+            if (response.status === 404) {
+                logger.info('Profile', 'User not found in DB, creating new record', { sub: attributes.sub });
+                const createRes = await fetch(`${apiUrl}/users/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        cognito_sub: attributes.sub,
+                        email: attributes.email,
+                        username: name
+                    })
+                });
+                if (createRes.ok) {
+                    data = await createRes.json();
+                    logger.info('Profile', 'Successfully created user record');
+                } else {
+                    const err = await createRes.text();
+                    logger.error('Profile', 'Failed to create user record', { err });
+                }
+            } else if (response.ok) {
+                data = await response.json();
+            }
+
+            if (data) {
+                setUser(data);
+                setUserProfile(prev => ({
+                    ...prev,
+                    name: data.username || name,
+                    handle: data.email || handle
+                }));
+                if (data.preferences) {
+                    setPreferences(prev => ({
+                        ...prev,
+                        ...data.preferences,
+                        // Map backend dietary_preferences to frontend dietary
+                        dietary: data.preferences.dietary_preferences || prev.dietary
+                    }));
+
+                }
+
+            }
+
+            // Fetch user's live updates
+            logger.info('Profile', 'Fetching live updates', { sub: attributes.sub });
+            logger.logFetch(`${apiUrl}/liveUpdates/user/${attributes.sub}`);
+            const updatesRes = await fetch(`${apiUrl}/liveUpdates/user/${attributes.sub}`);
+            console.log('Live updates response status:', updatesRes.status);
+            if (updatesRes.ok) {
+                const updatesData = await updatesRes.json();
+                console.log('Live updates data:', updatesData);
+                const mappedUpdates = updatesData.map((u: any) => ({
+                    id: u.id,
+                    cafe: u.cafe_name || 'Cafe',
+                    time: new Date(u.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    image: getImageUrl(u.image_url) || u.image_url
+                }));
+                console.log('Mapped updates:', mappedUpdates);
+                setUpdates(mappedUpdates);
+            } else {
+                const errorText = await updatesRes.text();
+                console.log('Failed to fetch live updates:', errorText);
+            }
+        } catch (error: any) {
+            logger.error('Profile', 'Error fetching user info', { error: error.message });
+            setUserProfile(prev => ({ ...prev, name: 'Guest', handle: '@guest' }));
+        }
+    };
+
+    useEffect(() => {
+        loadUserInfo();
+    }, [updated]);
+
+
+
 
     const [isEditModalVisible, setEditModalVisible] = useState(false);
+    const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Temp state for editing
     const [tempProfile, setTempProfile] = useState(userProfile);
@@ -121,6 +175,7 @@ export default function Profile() {
             if (!user?.cognito_sub) return;
 
             const payload = {
+                username: tempProfile.name,
                 work_friendly: tempPreferences.work_friendly,
                 noise_preference: tempPreferences.noise_preference,
                 vibe_preferences: tempPreferences.vibe_preferences,
@@ -129,6 +184,9 @@ export default function Profile() {
                 amenities: tempPreferences.amenities,
                 push_notifications: tempPreferences.notifications
             };
+
+            logger.info('Profile', 'Saving profile changes', { payload });
+            logger.logFetch(`${apiUrl}/users/${user.cognito_sub}`, { method: 'PATCH' });
 
             const response = await fetch(`${apiUrl}/users/${user.cognito_sub}`, {
                 method: 'PATCH',
@@ -157,6 +215,35 @@ export default function Profile() {
         }
     };
 
+    const handleDeleteAccount = async () => {
+        try {
+            if (!user?.cognito_sub) return;
+
+            setIsDeleting(true);
+            logger.info('Profile', 'Deleting user account', { sub: user.cognito_sub });
+
+            const response = await fetch(`${apiUrl}/users/${user.cognito_sub}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                const err = await response.text();
+                throw new Error(err || 'Failed to delete account');
+            }
+
+            // If success, sign out and redirect
+            await signOut();
+            router.replace('/auth/login');
+
+        } catch (error: any) {
+            logger.error('Profile', 'Error deleting account', { error: error.message });
+            alert('Failed to delete account: ' + error.message);
+        } finally {
+            setIsDeleting(false);
+            setDeleteModalVisible(false);
+        }
+    };
+
     const toggleListPreference = (category: 'vibe_preferences' | 'visit_purpose' | 'dietary' | 'amenities', value: string) => {
         setTempPreferences(prev => {
             const list = prev[category];
@@ -174,11 +261,6 @@ export default function Profile() {
         reviews: 28,
     };
 
-    const recentUpdates = [
-        { id: '1', cafe: 'The Grind', time: '2h ago', image: 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?q=80&w=500' },
-        { id: '2', cafe: 'Morning Brew', time: '1d ago', image: 'https://images.unsplash.com/photo-1511920170033-f8396924c348?q=80&w=500' },
-    ];
-
     const allPreferences = {
         noise: ['Quiet', 'Moderate', 'Lively'],
         vibes: ['Cozy', 'Modern', 'Industrial', 'Minimalist', 'Rustic'],
@@ -195,11 +277,11 @@ export default function Profile() {
             {/* Header */}
             <View style={[styles.header, { paddingTop: insets.top }]}>
                 <Pressable onPress={() => router.back()} style={styles.backBtn}>
-                    <AntDesign name="arrow-left" size={24} color="#000" />
+                    <AntDesign name="arrow-left" size={24} color={Colors.primary} />
                 </Pressable>
                 <Text style={styles.headerTitle}>My Profile</Text>
-                <Pressable>
-                    <Feather name="settings" size={24} color="#000" />
+                <Pressable style={styles.backBtn}>
+                    <Feather name="settings" size={24} color={Colors.primary} />
                 </Pressable>
             </View>
 
@@ -222,37 +304,40 @@ export default function Profile() {
                 {/* Stats Row */}
                 <View style={styles.statsRow}>
                     <View style={styles.statItem}>
-                        <View style={[styles.statIconContainer, { backgroundColor: '#E3F2FD' }]}>
-                            <FontAwesome5 name="map-marker-alt" size={20} color="#2196F3" />
+                        <View style={[styles.statIconContainer, { backgroundColor: Colors.accent + '15' }]}>
+                            <FontAwesome5 name="map-marker-alt" size={20} color={Colors.accent} />
                         </View>
                         <Text style={styles.statValue}>{user?.total_checkins || 0}</Text>
                         <Text style={styles.statLabel}>Cafes Visited</Text>
                     </View>
                     <View style={styles.statDivider} />
                     <View style={styles.statItem}>
-                        <View style={[styles.statIconContainer, { backgroundColor: '#FFF8E1' }]}>
-                            <FontAwesome5 name="star" size={20} color="#FFC107" />
+                        <View style={[styles.statIconContainer, { backgroundColor: Colors.cta + '15' }]}>
+                            <FontAwesome5 name="star" size={20} color={Colors.cta} />
                         </View>
                         <Text style={styles.statValue}>{user?.total_reviews || 0}</Text>
                         <Text style={styles.statLabel}>Reviews</Text>
                     </View>
                 </View>
 
-                {/* Recent Updates */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Recent Updates</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-                        {recentUpdates.map((update) => (
-                            <View key={update.id} style={styles.updateCard}>
-                                <Image source={{ uri: update.image }} style={styles.updateImg} />
-                                <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.updateGradient} />
-                                <View style={styles.updateInfo}>
-                                    <Text style={styles.updateCafe}>{update.cafe}</Text>
-                                    <Text style={styles.updateTime}>{update.time}</Text>
+                    <Text style={styles.sectionTitle}>My Stories</Text>
+                    {updates.length === 0 ? (
+                        <Text style={styles.emptyText}>No active stories.</Text>
+                    ) : (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
+                            {updates.map((update) => (
+                                <View key={update.id} style={styles.updateCard}>
+                                    <Image source={{ uri: update.image }} style={styles.updateImg} />
+                                    <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} style={styles.updateGradient} />
+                                    <View style={styles.updateInfo}>
+                                        <Text style={styles.updateCafe}>{update.cafe}</Text>
+                                        <Text style={styles.updateTime}>{update.time}</Text>
+                                    </View>
                                 </View>
-                            </View>
-                        ))}
-                    </ScrollView>
+                            ))}
+                        </ScrollView>
+                    )}
                 </View>
 
                 {/* Preferences */}
@@ -290,7 +375,7 @@ export default function Profile() {
                             <Pressable
                                 key={cafe.id}
                                 style={styles.cafeRow}
-                                onPress={() => router.push(`/cafe/${cafe.id}`)}
+                                onPress={() => router.push(`/cafe/${cafe.id}` as any)}
                             >
                                 <Image source={{ uri: cafe.image }} style={styles.cafeThumb} />
                                 <View style={styles.cafeDetails}>
@@ -299,9 +384,9 @@ export default function Profile() {
                                 </View>
                                 <Pressable
                                     style={styles.iconBtn}
-                                    onPress={() => toggleSaved(cafe.id)}
+                                    onPress={() => toggleSaved(cafe)}
                                 >
-                                    <MaterialIcons name="favorite" size={20} color="#FF0000" />
+                                    <MaterialIcons name="favorite" size={20} color={Colors.error} />
                                 </Pressable>
                             </Pressable>
                         ))
@@ -317,8 +402,16 @@ export default function Profile() {
                         console.error("Error signing out: ", error);
                     }
                 }}>
-                    <Feather name="log-out" size={20} color="#FF3B30" />
+                    <Feather name="log-out" size={20} color={Colors.error} />
                     <Text style={styles.logoutText}>Log Out</Text>
+                </Pressable>
+
+                <Pressable
+                    style={[styles.logoutBtn, { backgroundColor: Colors.error + '05', borderColor: Colors.error + '10', marginTop: 10 }]}
+                    onPress={() => setDeleteModalVisible(true)}
+                >
+                    <AntDesign name="delete" size={20} color={Colors.error} />
+                    <Text style={styles.logoutText}>Delete Account Permanently</Text>
                 </Pressable>
 
             </ScrollView>
@@ -334,7 +427,7 @@ export default function Profile() {
                     <View style={styles.modalHeader}>
                         <Text style={styles.modalTitle}>Edit Profile</Text>
                         <Pressable onPress={() => setEditModalVisible(false)} style={styles.closeModalBtn}>
-                            <Feather name="x" size={24} color="#000" />
+                            <Feather name="x" size={24} color={Colors.primary} />
                         </Pressable>
                     </View>
 
@@ -355,7 +448,7 @@ export default function Profile() {
                             <Switch
                                 value={!!tempPreferences.work_friendly}
                                 onValueChange={(val) => setTempPreferences(prev => ({ ...prev, work_friendly: val }))}
-                                trackColor={{ false: "#767577", true: "#000" }}
+                                trackColor={{ false: Colors.borderLight, true: Colors.primary }}
                             />
                         </View>
 
@@ -364,7 +457,7 @@ export default function Profile() {
                             <Switch
                                 value={tempPreferences.notifications}
                                 onValueChange={(val) => setTempPreferences(prev => ({ ...prev, notifications: val }))}
-                                trackColor={{ false: "#767577", true: "#000" }}
+                                trackColor={{ false: Colors.borderLight, true: Colors.primary }}
                             />
                         </View>
 
@@ -439,14 +532,54 @@ export default function Profile() {
                     </ScrollView>
                 </View>
             </Modal>
-        </View>
+
+            {/* Delete Account Modal */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={isDeleteModalVisible}
+                onRequestClose={() => setDeleteModalVisible(false)}
+            >
+                <View style={styles.centeredModal}>
+                    <View style={styles.confirmModal}>
+                        <View style={styles.warningIcon}>
+                            <Feather name="alert-triangle" size={32} color={Colors.error} />
+                        </View>
+                        <Text style={styles.confirmTitle}>Delete Account?</Text>
+                        <Text style={styles.confirmDesc}>
+                            This action is permanent and cannot be undone. All your check-ins, reviews, and saved cafes will be deleted.
+                        </Text>
+                        <View style={styles.confirmBtns}>
+                            <Pressable
+                                style={[styles.confirmBtn, styles.cancelBtn]}
+                                onPress={() => setDeleteModalVisible(false)}
+                                disabled={isDeleting}
+                            >
+                                <Text style={styles.cancelBtnText}>Keep Account</Text>
+                            </Pressable>
+                            <Pressable
+                                style={[styles.confirmBtn, styles.deleteBtn]}
+                                onPress={handleDeleteAccount}
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? (
+                                    <View style={styles.loaderSmall} />
+                                ) : (
+                                    <Text style={styles.deleteBtnText}>Yes, Delete</Text>
+                                )}
+                            </Pressable>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+        </View >
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.backgroundLight,
     },
     header: {
         flexDirection: 'row',
@@ -454,11 +587,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingBottom: 20,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.backgroundLight,
     },
     headerTitle: {
         fontSize: 18,
         fontWeight: '700',
+        color: Colors.textPrimary,
     },
     backBtn: { padding: 4 },
     scrollContent: {
@@ -472,24 +606,25 @@ const styles = StyleSheet.create({
         width: 100,
         height: 100,
         borderRadius: 50,
-        backgroundColor: '#F5F5F5',
+        backgroundColor: Colors.card,
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 12,
+        ...Shadows.small,
     },
     avatarText: {
         fontSize: 40,
         fontWeight: 'bold',
-        color: '#666',
+        color: Colors.textPrimary,
     },
     username: {
         fontSize: 24,
         fontWeight: '800',
-        color: '#000',
+        color: Colors.textPrimary,
     },
     userHandle: {
         fontSize: 14,
-        color: '#666',
+        color: Colors.textSecondary,
         marginTop: 2,
     },
     editBtn: {
@@ -498,20 +633,21 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: '#ddd',
-        backgroundColor: '#fff',
+        borderColor: Colors.borderLight,
+        backgroundColor: Colors.card,
+        ...Shadows.small,
     },
     editBtnText: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#333',
+        color: Colors.textPrimary,
     },
     statsRow: {
         flexDirection: 'row',
         justifyContent: 'space-around',
         paddingVertical: 24,
         borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0',
+        borderBottomColor: Colors.borderLight,
     },
     statItem: {
         alignItems: 'center',
@@ -521,7 +657,6 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#FFEBEE',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 8,
@@ -529,17 +664,17 @@ const styles = StyleSheet.create({
     statValue: {
         fontSize: 20,
         fontWeight: '800',
-        color: '#000',
+        color: Colors.textPrimary,
     },
     statLabel: {
         fontSize: 12,
-        color: '#888',
+        color: Colors.textSecondary,
         marginTop: 4,
     },
     statDivider: {
         width: 1,
         height: '80%',
-        backgroundColor: '#E0E0E0',
+        backgroundColor: Colors.borderLight,
         alignSelf: 'center',
     },
     section: {
@@ -549,7 +684,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#000',
+        color: Colors.textPrimary,
         marginBottom: 16,
     },
     badgesScroll: {
@@ -563,19 +698,15 @@ const styles = StyleSheet.create({
     badgeIcon: {
         width: 60,
         height: 60,
-        borderRadius: 30,
+        backgroundColor: Colors.card,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        ...Shadows.small,
     },
     badgeName: {
         fontSize: 12,
         fontWeight: '500',
-        color: '#333',
+        color: Colors.textPrimary,
     },
     horizontalScroll: {
         paddingRight: 20,
@@ -616,14 +747,16 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     tag: {
-        backgroundColor: '#F5F5F5',
+        backgroundColor: Colors.card,
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 20,
+        borderWidth: 1,
+        borderColor: Colors.borderLight,
     },
     tagText: {
         fontSize: 14,
-        color: '#444',
+        color: Colors.textSecondary,
         fontWeight: '500',
     },
     rowBetween: {
@@ -634,17 +767,18 @@ const styles = StyleSheet.create({
     },
     seeAll: {
         fontSize: 14,
-        color: '#007AFF',
+        color: Colors.cta,
         fontWeight: '600',
     },
     cafeRow: {
         flexDirection: 'row',
         alignItems: 'center',
         padding: 12,
-        backgroundColor: '#F9F9F9',
+        backgroundColor: Colors.card,
         borderRadius: 12,
         marginBottom: 12,
         gap: 12,
+        ...Shadows.small,
     },
     cafeThumb: {
         width: 50,
@@ -657,18 +791,18 @@ const styles = StyleSheet.create({
     cafeTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#000',
+        color: Colors.textPrimary,
     },
     cafeSubtitle: {
         fontSize: 13,
-        color: '#666',
+        color: Colors.textSecondary,
         marginTop: 2,
     },
     iconBtn: {
         padding: 8,
     },
     emptyText: {
-        color: '#888',
+        color: Colors.textSecondary,
         fontStyle: 'italic',
         marginTop: 8,
     },
@@ -678,22 +812,22 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         gap: 8,
         marginTop: 40,
-        marginBottom: 20,
+        marginBottom: 40,
         paddingVertical: 16,
-        marginHorizontal: 20,
-        backgroundColor: '#FFF5F5',
+        marginHorizontal: 24,
+        backgroundColor: Colors.error + '10',
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#FFE5E5',
+        borderColor: Colors.error + '20',
     },
     logoutText: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#FF3B30',
+        color: Colors.error,
     },
     modalContainer: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.backgroundLight,
     },
     modalHeader: {
         flexDirection: 'row',
@@ -701,11 +835,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 20,
         borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0',
+        borderBottomColor: Colors.borderLight,
+        backgroundColor: Colors.backgroundLight,
     },
     modalTitle: {
         fontSize: 18,
         fontWeight: '700',
+        color: Colors.textPrimary,
     },
     closeModalBtn: {
         padding: 4,
@@ -716,17 +852,18 @@ const styles = StyleSheet.create({
     inputLabel: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#666',
+        color: Colors.textSecondary,
         marginBottom: 8,
         marginTop: 16,
     },
     input: {
-        backgroundColor: '#F5F5F5',
+        backgroundColor: Colors.card,
         padding: 16,
         borderRadius: 12,
         fontSize: 16,
         borderWidth: 1,
-        borderColor: '#E0E0E0',
+        borderColor: Colors.borderLight,
+        color: Colors.textPrimary,
     },
     textArea: {
         minHeight: 100,
@@ -737,22 +874,25 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         marginTop: 32,
         marginBottom: 16,
+        color: Colors.textPrimary,
     },
     switchRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 16,
-        backgroundColor: '#F9F9F9',
+        backgroundColor: Colors.card,
         padding: 16,
         borderRadius: 12,
+        ...Shadows.small,
     },
     switchLabel: {
         fontSize: 16,
         fontWeight: '500',
+        color: Colors.textPrimary,
     },
     saveBtn: {
-        backgroundColor: '#000',
+        backgroundColor: Colors.primary,
         paddingVertical: 16,
         borderRadius: 16,
         alignItems: 'center',
@@ -760,14 +900,90 @@ const styles = StyleSheet.create({
         marginBottom: 40,
     },
     saveBtnText: {
-        color: '#fff',
+        color: Colors.white,
         fontSize: 16,
         fontWeight: '700',
     },
     activeTag: {
-        backgroundColor: '#000',
+        backgroundColor: Colors.primary,
+        borderColor: Colors.primary,
     },
     activeTagText: {
-        color: '#fff',
+        color: Colors.white,
     },
+    centeredModal: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    confirmModal: {
+        backgroundColor: Colors.card,
+        borderRadius: 24,
+        padding: 30,
+        width: '100%',
+        alignItems: 'center',
+        ...Shadows.medium,
+    },
+    warningIcon: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: Colors.error + '15',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    confirmTitle: {
+        fontSize: 22,
+        fontWeight: '800',
+        color: Colors.textPrimary,
+        marginBottom: 10,
+    },
+    confirmDesc: {
+        fontSize: 14,
+        color: Colors.textSecondary,
+        textAlign: 'center',
+        marginBottom: 30,
+        lineHeight: 20,
+    },
+    confirmBtns: {
+        flexDirection: 'row',
+        gap: 12,
+        width: '100%',
+    },
+    confirmBtn: {
+        flex: 1,
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    cancelBtn: {
+        backgroundColor: Colors.card,
+        borderWidth: 1,
+        borderColor: Colors.borderLight,
+    },
+    deleteBtn: {
+        backgroundColor: Colors.error,
+    },
+    cancelBtnText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.textSecondary,
+    },
+    deleteBtnText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: Colors.white,
+    },
+    loaderSmall: {
+        width: 20,
+        height: 20,
+        borderWidth: 2,
+        borderColor: Colors.white + '30',
+        borderTopColor: Colors.white,
+        borderRadius: 10,
+    }
 });

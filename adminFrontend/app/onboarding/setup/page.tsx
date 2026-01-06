@@ -1,16 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthProtection } from "../../hooks/useAuthProtection";
 
+type WorkingHoursDay = { open: string; close: string; closed: boolean };
+
+function normalizeWorkingHours(
+    wh: Record<string, WorkingHoursDay>
+): Record<string, WorkingHoursDay> {
+    const map: Record<string, string> = {
+        monday: "mon",
+        tuesday: "tue",
+        wednesday: "wed",
+        thursday: "thu",
+        friday: "fri",
+        saturday: "sat",
+        sunday: "sun",
+    };
+
+    const out: Record<string, WorkingHoursDay> = {};
+    for (const [day, hours] of Object.entries(wh)) {
+        const key = map[day.toLowerCase()] ?? day.toLowerCase().slice(0, 3);
+        out[key] = hours;
+    }
+    return out;
+}
 
 export default function OnboardingSetupPage() {
     const { isAuthenticated, loading, userId } = useAuthProtection();
     const router = useRouter();
     const [step, setStep] = useState(1);
+
     const apiURL = process.env.NEXT_PUBLIC_API_URL;
+
+    const [submitting, setSubmitting] = useState(false);
 
     // Hooks must be unconditional
     const [formData, setFormData] = useState({
@@ -28,8 +53,10 @@ export default function OnboardingSetupPage() {
         website: "",
         latitude: null as number | null,
         longitude: null as number | null,
+        coverPhoto: null as File | null,
         photos: [] as File[],
-        totalTables: 0,
+        tables2Seat: 0,
+        tables4Seat: 0,
         workingHours: {
             Monday: { open: "09:00", close: "17:00", closed: false },
             Tuesday: { open: "09:00", close: "17:00", closed: false },
@@ -38,17 +65,24 @@ export default function OnboardingSetupPage() {
             Friday: { open: "09:00", close: "17:00", closed: false },
             Saturday: { open: "10:00", close: "22:00", closed: false },
             Sunday: { open: "10:00", close: "22:00", closed: false },
-        } as Record<string, { open: string; close: string; closed: boolean }>,
+        } as Record<string, WorkingHoursDay>,
     });
 
-    // Loading/Auth checks come AFTER hooks
-    if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-    if (!isAuthenticated) return null;
+    // Sync cognito_sub once userId arrives (DON'T setState during render)
+    useEffect(() => {
+        if (userId) {
+            setFormData((prev) => ({ ...prev, cognito_sub: userId }));
+        }
+    }, [userId]);
 
-    // Sync Cognito ID once available
-    if (userId && !formData.cognito_sub) {
-        setFormData(prev => ({ ...prev, cognito_sub: userId }));
-    }
+    // Auth checks AFTER hooks
+    if (loading)
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                Loading...
+            </div>
+        );
+    if (!isAuthenticated) return null;
 
     const updateForm = (key: string, value: any) => {
         setFormData((prev) => ({ ...prev, [key]: value }));
@@ -67,10 +101,10 @@ export default function OnboardingSetupPage() {
         if ("geolocation" in navigator) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
-                    setFormData(prev => ({
+                    setFormData((prev) => ({
                         ...prev,
                         latitude: position.coords.latitude,
-                        longitude: position.coords.longitude
+                        longitude: position.coords.longitude,
                     }));
                 },
                 (error) => {
@@ -85,57 +119,122 @@ export default function OnboardingSetupPage() {
 
     const handleNext = () => setStep((prev) => prev + 1);
     const handleBack = () => setStep((prev) => prev - 1);
+
+    const uploadFile = async (file: File, category: 'cover_photo' | 'cafe_photo' | 'menu_photo', apiUrl: string): Promise<string | null> => {
+        try {
+            const res = await fetch(`${apiUrl}/upload/presigned-url`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    filename: file.name,
+                    file_type: file.type,
+                    category: category
+                })
+            });
+            if (!res.ok) throw new Error("Failed to get presigned URL");
+            const { upload_url, file_url } = await res.json();
+
+            const uploadRes = await fetch(upload_url, {
+                method: 'PUT',
+                body: file,
+                headers: { 'Content-Type': file.type }
+            });
+            if (!uploadRes.ok) throw new Error(`Direct upload failed for ${file.name}`);
+
+            return file_url;
+        } catch (err) {
+            console.error("Upload error:", err);
+            return null;
+        }
+    };
+
     const submitForm = async () => {
-        // Create FormData for multipart/form-data submission
-        const formDataToSend = new FormData();
+        if (!apiURL) {
+            alert("NEXT_PUBLIC_API_URL is not set");
+            return;
+        }
+        if (!formData.cognito_sub) {
+            alert("No cognito_sub (userId) found. Please re-login.");
+            return;
+        }
 
-        // Add text fields
-        formDataToSend.append('cognito_sub', formData.cognito_sub);
-        formDataToSend.append('name', formData.name);
-        formDataToSend.append('description', formData.description);
-        formDataToSend.append('phone_number', formData.phone);
-        formDataToSend.append('address', formData.address);
-        formDataToSend.append('city', formData.city);
-        formDataToSend.append('latitude', String(formData.latitude || 0));
-        formDataToSend.append('longitude', String(formData.longitude || 0));
-        formDataToSend.append('instagram_url', formData.instagram);
-        formDataToSend.append('website_link', formData.website);
-        formDataToSend.append('menu_link', formData.menuLink);
-        formDataToSend.append('total_tables', String(formData.totalTables));
-        formDataToSend.append('occupancy_capacity', String(formData.totalTables * 4));
-        formDataToSend.append('occupancy_level', '0');
+        try {
+            setSubmitting(true);
+            const cleanURL = apiURL.endsWith("/") ? apiURL.slice(0, -1) : apiURL;
+            const fullURL = `${cleanURL}/cafes/`;
 
-        // Add JSON fields as strings
-        formDataToSend.append('amenities', JSON.stringify(formData.amenities));
-        formDataToSend.append('working_hours', JSON.stringify(formData.workingHours));
+            console.log("DEBUG: Starting direct uploads...");
 
-        // Add cafe photo files
-        formData.photos.forEach((photo) => {
-            formDataToSend.append('cafe_photos', photo);
-        });
+            // 1. Upload Cover Photo
+            let coverPhotoUrl = "";
+            if (formData.coverPhoto) {
+                const url = await uploadFile(formData.coverPhoto, 'cover_photo', cleanURL);
+                if (url) coverPhotoUrl = url;
+            }
 
-        // Add menu photo files
-        formData.menuPhotos.forEach((photo) => {
-            formDataToSend.append('menu_photos', photo);
-        });
+            // 2. Upload Cafe Photos
+            const cafePhotoUrls: string[] = [];
+            for (const file of formData.photos) {
+                const url = await uploadFile(file, 'cafe_photo', cleanURL);
+                if (url) cafePhotoUrls.push(url);
+            }
 
-        const response = await fetch(`${apiURL}/cafes`, {
-            method: "POST",
-            body: formDataToSend  // Don't set Content-Type header - browser will set it with boundary
-        })
+            // 3. Upload Menu Photos
+            const menuPhotoUrls: string[] = [];
+            if (formData.menuType === 'photos') {
+                for (const file of formData.menuPhotos) {
+                    const url = await uploadFile(file, 'menu_photo', cleanURL);
+                    if (url) menuPhotoUrls.push(url);
+                }
+            }
 
-        if (response.ok) {
-            console.log("Cafe created successfully!");
-            router.push('/profile')
-        } else {
-            const errorText = await response.text();
-            console.error("Error creating cafe:", errorText);
-            alert(`Failed to create cafe: ${errorText}`);
+            console.log("DEBUG: Uploads complete. Submitting metadata...");
+
+            const payload = {
+                cognito_sub: formData.cognito_sub,
+                name: formData.name,
+                description: formData.description || "",
+                phone_number: formData.phone || "",
+                address: formData.address,
+                city: formData.city,
+                latitude: formData.latitude ?? 0,
+                longitude: formData.longitude ?? 0,
+                website_link: formData.website || "",
+                instagram_url: formData.instagram || "",
+                menu_link: formData.menuType === "link" ? formData.menuLink : "",
+                menu_photos: menuPhotoUrls,
+                cover_photo: coverPhotoUrl,
+                cafe_photos: cafePhotoUrls,
+                two_tables: formData.tables2Seat,
+                four_tables: formData.tables4Seat,
+                amenities: formData.amenities,
+                working_hours: normalizeWorkingHours(formData.workingHours),
+                table_config: []
+            };
+
+            const response = await fetch(fullURL, {
+                method: "POST",
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            if (response.ok) {
+                router.push("/profile");
+            } else {
+                const errorText = await response.text();
+                console.error("Error creating cafe:", errorText);
+                alert(`Failed to create cafe: ${errorText}`);
+            }
+        } catch (err: any) {
+            console.error("DEBUG: fetch error:", err);
+            alert(`Failed: ${err?.message || String(err)}`);
+        } finally {
+            setSubmitting(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
             <div className="max-w-3xl w-full">
                 {/* Progress Steps */}
                 <div className="mb-8 flex justify-between items-center px-8">
@@ -149,7 +248,10 @@ export default function OnboardingSetupPage() {
                             >
                                 {s}
                             </div>
-                            <span className={`text-sm font-medium ${step >= s ? "text-foreground" : "text-muted-foreground"}`}>
+                            <span
+                                className={`text-sm font-medium ${step >= s ? "text-foreground" : "text-muted-foreground"
+                                    }`}
+                            >
                                 {s === 1 ? "Basic Info" : s === 2 ? "Media & Menu" : "Details"}
                             </span>
                             {s < 3 && <div className="w-12 h-[2px] bg-muted-foreground/20 mx-2" />}
@@ -157,8 +259,18 @@ export default function OnboardingSetupPage() {
                     ))}
                 </div>
 
-                <form onSubmit={(e) => e.preventDefault()} className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
-                    {/* Step 1: Basic Information */}
+                <form
+                    onSubmit={(e) => e.preventDefault()}
+                    className="bg-card border border-border rounded-xl p-8 shadow-sm"
+                >
+                    {/* Status */}
+                    {submitting && (
+                        <div className="mb-6 p-3 rounded-lg border border-border bg-muted/50 text-sm">
+                            <span className="font-medium">Submitting...</span>
+                        </div>
+                    )}
+
+                    {/* Step 1 */}
                     {step === 1 && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-300">
                             <div className="text-center mb-8">
@@ -178,6 +290,7 @@ export default function OnboardingSetupPage() {
                                         onChange={(e) => updateForm("name", e.target.value)}
                                     />
                                 </div>
+
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Phone Number</label>
                                     <input
@@ -189,6 +302,7 @@ export default function OnboardingSetupPage() {
                                         onChange={(e) => updateForm("phone", e.target.value)}
                                     />
                                 </div>
+
                                 <div className="space-y-2 md:col-span-2">
                                     <label className="text-sm font-medium">Description</label>
                                     <textarea
@@ -200,17 +314,19 @@ export default function OnboardingSetupPage() {
                                         onChange={(e) => updateForm("description", e.target.value)}
                                     />
                                 </div>
+
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">City</label>
                                     <input
                                         required
                                         type="text"
                                         className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                                        placeholder="New York"
+                                        placeholder="San Jose"
                                         value={formData.city}
                                         onChange={(e) => updateForm("city", e.target.value)}
                                     />
                                 </div>
+
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Address</label>
                                     <input
@@ -229,28 +345,26 @@ export default function OnboardingSetupPage() {
                                         <button
                                             type="button"
                                             onClick={fetchLocation}
-                                            className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2"
+                                            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all flex items-center gap-2 shadow-sm"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
                                             Fetch Location
                                         </button>
 
                                         {formData.latitude && formData.longitude && (
                                             <div className="flex items-center gap-2 text-green-600 animate-in fade-in slide-in-from-left-4 duration-300">
-                                                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center border border-green-200">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                                </div>
                                                 <span className="text-sm font-medium">Location Fetched</span>
                                             </div>
                                         )}
                                     </div>
-                                    <p className="text-xs text-muted-foreground">Click fetch to automatically get your current GPS coordinates.</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Click fetch to automatically get your current GPS coordinates.
+                                    </p>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Step 2: Media & Menu */}
+                    {/* Step 2 */}
                     {step === 2 && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-300">
                             <div className="text-center mb-8">
@@ -260,13 +374,56 @@ export default function OnboardingSetupPage() {
 
                             <div className="space-y-6">
                                 <div>
+                                    <label className="text-sm font-medium mb-4 block">Cover Photo</label>
+                                    <div className="relative w-full aspect-[21/9] rounded-xl overflow-hidden border border-border group bg-muted/30 hover:bg-muted/50 transition-colors">
+                                        {formData.coverPhoto ? (
+                                            <>
+                                                <img
+                                                    src={URL.createObjectURL(formData.coverPhoto)}
+                                                    alt="Cover"
+                                                    className="w-full h-full object-cover"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => updateForm("coverPhoto", null)}
+                                                    className="absolute top-2 right-2 bg-primary/80 text-primary-foreground rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer">
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                    onChange={(e) => {
+                                                        if (e.target.files?.[0]) {
+                                                            updateForm("coverPhoto", e.target.files[0]);
+                                                        }
+                                                    }}
+                                                />
+                                                <span className="text-sm font-medium text-muted-foreground">Click to upload cover photo</span>
+                                                <span className="text-xs text-muted-foreground mt-1">Recommended 21:9 aspect ratio</span>
+                                            </label>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div>
                                     <label className="text-sm font-medium mb-4 block">
-                                        Cafe Photos <span className="text-muted-foreground font-normal">({formData.photos.length}/10)</span>
+                                        Cafe Photos{" "}
+                                        <span className="text-muted-foreground font-normal">
+                                            ({formData.photos.length}/10)
+                                        </span>
                                     </label>
 
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                                         {formData.photos.map((photo, index) => (
-                                            <div key={index} className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 group">
+                                            <div
+                                                key={index}
+                                                className="relative aspect-square rounded-xl overflow-hidden border border-border group bg-muted/20"
+                                            >
                                                 <img
                                                     src={URL.createObjectURL(photo)}
                                                     alt={`Upload ${index + 1}`}
@@ -279,15 +436,15 @@ export default function OnboardingSetupPage() {
                                                         newPhotos.splice(index, 1);
                                                         updateForm("photos", newPhotos);
                                                     }}
-                                                    className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                                                    className="absolute top-1 right-1 bg-primary/80 text-primary-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary"
                                                 >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                    ✕
                                                 </button>
                                             </div>
                                         ))}
 
                                         {formData.photos.length < 10 && (
-                                            <label className="border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 hover:border-gray-300 transition-all aspect-square">
+                                            <label className="border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 hover:border-muted-foreground/50 transition-all aspect-square">
                                                 <input
                                                     type="file"
                                                     multiple
@@ -302,31 +459,29 @@ export default function OnboardingSetupPage() {
                                                             if (files.length > remainingSlots) {
                                                                 alert(`You can only add ${remainingSlots} more photos.`);
                                                             }
-
                                                             updateForm("photos", [...formData.photos, ...filesToAdd]);
                                                         }
                                                     }}
                                                 />
-                                                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mb-2">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                                </div>
-                                                <span className="text-xs font-medium text-gray-600">Add Photo</span>
+                                                <span className="text-xs font-medium text-muted-foreground">Add Photo</span>
                                             </label>
                                         )}
                                     </div>
-                                    <p className="text-xs text-muted-foreground">Upload up to 10 photos. Supported formats: JPG, PNG.</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Upload up to 10 photos. Supported formats: JPG, PNG.
+                                    </p>
                                 </div>
 
                                 <div className="space-y-4">
                                     <label className="text-sm font-medium block">Menu</label>
 
-                                    <div className="flex gap-2 p-1 bg-gray-100 rounded-lg w-fit">
+                                    <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
                                         <button
                                             type="button"
                                             onClick={() => updateForm("menuType", "link")}
                                             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${formData.menuType === "link"
-                                                ? "bg-white text-black shadow-sm"
-                                                : "text-gray-500 hover:text-gray-900"
+                                                ? "bg-card text-foreground shadow-sm"
+                                                : "text-muted-foreground hover:text-foreground"
                                                 }`}
                                         >
                                             Link / URL
@@ -335,8 +490,8 @@ export default function OnboardingSetupPage() {
                                             type="button"
                                             onClick={() => updateForm("menuType", "photos")}
                                             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${formData.menuType === "photos"
-                                                ? "bg-white text-black shadow-sm"
-                                                : "text-gray-500 hover:text-gray-900"
+                                                ? "bg-card text-foreground shadow-sm"
+                                                : "text-muted-foreground hover:text-foreground"
                                                 }`}
                                         >
                                             Upload Photos
@@ -346,16 +501,19 @@ export default function OnboardingSetupPage() {
                                     {formData.menuType === "link" ? (
                                         <input
                                             type="url"
-                                            className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary/20 outline-none transition-all animate-in fade-in"
+                                            className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                                             placeholder="https://..."
                                             value={formData.menuLink}
                                             onChange={(e) => updateForm("menuLink", e.target.value)}
                                         />
                                     ) : (
-                                        <div className="animate-in fade-in">
+                                        <div>
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2">
                                                 {formData.menuPhotos.map((photo, index) => (
-                                                    <div key={index} className="relative aspect-[3/4] rounded-xl overflow-hidden border border-gray-200 group">
+                                                    <div
+                                                        key={index}
+                                                        className="relative aspect-[3/4] rounded-xl overflow-hidden border border-border group bg-muted/20"
+                                                    >
                                                         <img
                                                             src={URL.createObjectURL(photo)}
                                                             alt={`Menu Page ${index + 1}`}
@@ -368,13 +526,14 @@ export default function OnboardingSetupPage() {
                                                                 newPhotos.splice(index, 1);
                                                                 updateForm("menuPhotos", newPhotos);
                                                             }}
-                                                            className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                                                            className="absolute top-1 right-1 bg-primary/80 text-primary-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary"
                                                         >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                            ✕
                                                         </button>
                                                     </div>
                                                 ))}
-                                                <label className="border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 hover:border-gray-300 transition-all aspect-[3/4]">
+
+                                                <label className="border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 hover:border-muted-foreground/50 transition-all aspect-[3/4]">
                                                     <input
                                                         type="file"
                                                         multiple
@@ -387,13 +546,13 @@ export default function OnboardingSetupPage() {
                                                             }
                                                         }}
                                                     />
-                                                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mb-2">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                                    </div>
-                                                    <span className="text-xs font-medium text-gray-600">Add Page</span>
+                                                    <span className="text-xs font-medium text-muted-foreground">Add Page</span>
                                                 </label>
                                             </div>
-                                            <p className="text-xs text-muted-foreground">Upload menu pages. Supported formats: JPG, PNG.</p>
+
+                                            <p className="text-xs text-muted-foreground">
+                                                Upload menu pages. Supported formats: JPG, PNG.
+                                            </p>
                                         </div>
                                     )}
                                 </div>
@@ -423,9 +582,10 @@ export default function OnboardingSetupPage() {
                                 </div>
                             </div>
                         </div>
+
                     )}
 
-                    {/* Step 3: Amenities & Final Details */}
+                    {/* Step 3 */}
                     {step === 3 && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-300">
                             <div className="text-center mb-8">
@@ -434,43 +594,67 @@ export default function OnboardingSetupPage() {
                             </div>
 
                             <div className="space-y-4">
-                                <label className="text-sm font-medium">Total Tables</label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                                    placeholder="e.g. 15"
-                                    value={formData.totalTables || ""}
-                                    onChange={(e) => updateForm("totalTables", parseInt(e.target.value) || 0)}
-                                />
-                                <p className="text-xs text-muted-foreground">This sets your initial dashboard capacity.</p>
+                                <label className="text-sm font-medium">Table Configuration</label>
+                                <p className="text-xs text-muted-foreground mb-4">
+                                    Specify how many tables of each size you have.
+                                </p>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">2-Seat Tables</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                            value={formData.tables2Seat || ""}
+                                            onChange={(e) =>
+                                                updateForm("tables2Seat", parseInt(e.target.value) || 0)
+                                            }
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">4-Seat Tables</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                            value={formData.tables4Seat || ""}
+                                            onChange={(e) =>
+                                                updateForm("tables4Seat", parseInt(e.target.value) || 0)
+                                            }
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
                             <div className="space-y-4">
                                 <label className="text-sm font-medium">Amenities</label>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                    {["WiFi", "Outlets", "Outdoor Seating", "Pet Friendly", "Vegan Options", "Live Music"].map((amenity) => (
-                                        <button
-                                            key={amenity}
-                                            type="button"
-                                            onClick={() => toggleAmenity(amenity)}
-                                            className={`px-4 py-3 rounded-lg text-sm font-medium border transition-all ${formData.amenities.includes(amenity)
-                                                ? "bg-primary/10 border-primary text-primary"
-                                                : "bg-background border-border hover:bg-muted"
-                                                }`}
-                                        >
-                                            {amenity} {formData.amenities.includes(amenity) && "✓"}
-                                        </button>
-                                    ))}
+                                    {["WiFi", "Power Outlets", "Outdoor Seating", "Pet Friendly", "Vegan Options", "Live Music", "Board Games", "Well-stocked bathroom"].map(
+                                        (amenity) => (
+                                            <button
+                                                key={amenity}
+                                                type="button"
+                                                onClick={() => toggleAmenity(amenity)}
+                                                className={`px-4 py-3 rounded-lg text-sm font-medium border transition-all ${formData.amenities.includes(amenity)
+                                                    ? "bg-primary/10 border-primary text-primary"
+                                                    : "bg-background border-border hover:bg-muted"
+                                                    }`}
+                                            >
+                                                {amenity} {formData.amenities.includes(amenity) && "✓"}
+                                            </button>
+                                        )
+                                    )}
                                 </div>
                             </div>
 
                             <div className="space-y-4">
                                 <label className="text-sm font-medium">Working Hours</label>
-                                <div className="space-y-3 bg-white border border-gray-100 rounded-lg p-4">
+                                <div className="space-y-3 bg-card border border-border/50 rounded-lg p-4">
                                     {Object.entries(formData.workingHours).map(([day, hours]) => (
                                         <div key={day} className="flex items-center gap-4 text-sm">
-                                            <div className="w-24 font-medium text-gray-700">{day}</div>
+                                            <div className="w-24 font-medium text-foreground/80">{day}</div>
 
                                             <label className="flex items-center gap-2 cursor-pointer min-w-[80px]">
                                                 <input
@@ -481,13 +665,14 @@ export default function OnboardingSetupPage() {
                                                         newHours[day].closed = e.target.checked;
                                                         updateForm("workingHours", newHours);
                                                     }}
-                                                    className="rounded border-gray-300 text-black focus:ring-black"
                                                 />
-                                                <span className="text-gray-500 text-xs uppercase tracking-wide">Closed</span>
+                                                <span className="text-muted-foreground/70 text-xs uppercase tracking-wide">
+                                                    Closed
+                                                </span>
                                             </label>
 
                                             {!hours.closed && (
-                                                <div className="flex items-center gap-2 animate-in fade-in">
+                                                <div className="flex items-center gap-2">
                                                     <input
                                                         type="time"
                                                         value={hours.open}
@@ -496,9 +681,9 @@ export default function OnboardingSetupPage() {
                                                             newHours[day].open = e.target.value;
                                                             updateForm("workingHours", newHours);
                                                         }}
-                                                        className="px-2 py-1 border border-gray-200 rounded outline-none focus:border-black"
+                                                        className="px-2 py-1 border border-border rounded outline-none bg-muted/30 text-foreground"
                                                     />
-                                                    <span className="text-gray-400">-</span>
+                                                    <span className="text-muted-foreground/50">-</span>
                                                     <input
                                                         type="time"
                                                         value={hours.close}
@@ -507,7 +692,7 @@ export default function OnboardingSetupPage() {
                                                             newHours[day].close = e.target.value;
                                                             updateForm("workingHours", newHours);
                                                         }}
-                                                        className="px-2 py-1 border border-gray-200 rounded outline-none focus:border-black"
+                                                        className="px-2 py-1 border border-border rounded outline-none bg-muted/30 text-foreground"
                                                     />
                                                 </div>
                                             )}
@@ -518,18 +703,22 @@ export default function OnboardingSetupPage() {
                         </div>
                     )}
 
-                    {/* Navigation Buttons */}
+                    {/* Nav buttons */}
                     <div className="flex justify-between mt-8 pt-6 border-t border-border">
                         {step > 1 ? (
                             <button
                                 type="button"
                                 onClick={handleBack}
                                 className="px-6 py-2 rounded-lg hover:bg-muted transition-colors font-medium"
+                                disabled={submitting}
                             >
                                 Back
                             </button>
                         ) : (
-                            <Link href="/dashboard" className="px-6 py-2 rounded-lg hover:bg-muted transition-colors font-medium text-muted-foreground">
+                            <Link
+                                href="/dashboard"
+                                className="px-6 py-2 rounded-lg hover:bg-muted transition-colors font-medium text-muted-foreground"
+                            >
                                 Cancel
                             </Link>
                         )}
@@ -539,6 +728,7 @@ export default function OnboardingSetupPage() {
                                 type="button"
                                 onClick={handleNext}
                                 className="px-8 py-2 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
+                                disabled={submitting}
                             >
                                 Next Step
                             </button>
@@ -547,8 +737,9 @@ export default function OnboardingSetupPage() {
                                 type="button"
                                 onClick={submitForm}
                                 className="px-8 py-2 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-primary/25"
+                                disabled={submitting}
                             >
-                                Complete Setup
+                                {submitting ? "Submitting..." : "Complete Setup"}
                             </button>
                         )}
                     </div>

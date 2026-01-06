@@ -1,1 +1,19 @@
 .venv
+*.pyc
+.env
+__pycache__/
+
+# Node.js
+node_modules/
+.next/
+out/
+build/
+
+# macOS
+.DS_Store
+
+# Expo
+.expo/
+dist/
+ios/pods/
+*.log

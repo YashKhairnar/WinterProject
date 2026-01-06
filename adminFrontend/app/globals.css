@@ -1,41 +1,45 @@
 @import "tailwindcss";
 
 :root {
-  /* Minimalist Light Theme */
-  --background: 0 0% 100%;
-  /* #FFFFFF */
-  --foreground: 0 0% 9%;
-  /* #171717 */
+  /* Coffee Culture Theme */
+  --background: 42 50% 97.4%;
+  /* #FCF9F2 - Soft Cream */
+  --foreground: 0 0% 17.3%;
+  /* #2C2C2C - Dark Charcoal */
 
   --card: 0 0% 100%;
-  --card-foreground: 0 0% 9%;
-
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 9%;
-
-  --primary: 0 0% 9%;
-  /* Black */
-  --primary-foreground: 0 0% 98%;
   /* White */
+  --card-foreground: 0 0% 17.3%;
 
-  --secondary: 0 0% 96.1%;
-  --secondary-foreground: 0 0% 9%;
+  --popover: 42 50% 97.4%;
+  --popover-foreground: 0 0% 17.3%;
 
-  --muted: 0 0% 96.1%;
-  --muted-foreground: 0 0% 45.1%;
+  --primary: 24 33% 18.2%;
+  /* #3D2B1F - Deep Espresso */
+  --primary-foreground: 42 50% 97.4%;
 
-  --accent: 0 0% 96.1%;
-  --accent-foreground: 0 0% 9%;
+  --secondary: 75 26% 48.4%;
+  /* #8A9A5B - Muted Sage */
+  --secondary-foreground: 42 50% 97.4%;
+
+  --muted: 0 0% 87.8%;
+  /* #E0E0E0 - Light Border/Muted */
+  --muted-foreground: 0 0% 45.9%;
+  /* #757575 - Soft Gray */
+
+  --accent: 31 54% 51.8%;
+  /* #C68642 - Subtle Caramel */
+  --accent-foreground: 42 50% 97.4%;
 
   --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
+  --destructive-foreground: 42 50% 97.4%;
 
-  --border: 0 0% 89.8%;
-  /* #E5E5E5 */
-  --input: 0 0% 89.8%;
-  --ring: 0 0% 9%;
+  --border: 0 0% 87.8%;
+  /* #E0E0E0 */
+  --input: 0 0% 87.8%;
+  --ring: 24 33% 18.2%;
 
-  --radius: 0.5rem;
+  --radius: 0.75rem;
   /* Slightly tighter radius for professional web look */
 }
 
@@ -95,18 +99,18 @@ body {
   font-feature-settings: "rlig" 1, "calt" 1;
 }
 
-/* Minimalist Light Utilities */
+/* Minimalist Coffee Utilities */
 .glass {
-  @apply bg-white/60 backdrop-blur-md border border-black/5 shadow-sm;
+  @apply bg-background/60 backdrop-blur-md border border-primary/5 shadow-sm;
 }
 
 .glass-card {
-  @apply bg-white border border-gray-100 shadow-sm;
-  @apply rounded-xl p-6 transition-all duration-300;
-  @apply hover:shadow-md hover:border-gray-200;
+  @apply bg-card border border-border shadow-sm;
+  @apply rounded-2xl p-6 transition-all duration-300;
+  @apply hover:shadow-md hover:border-accent/20;
 }
 
 /* Custom Utilities */
 .text-gradient {
-  @apply bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600;
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
 }
