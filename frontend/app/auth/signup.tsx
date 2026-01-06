@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, KeyboardAvoidingView, Platform, Alert } from "react-native";
+import { View, Text, StyleSheet, TextInput, Pressable, KeyboardAvoidingView, Platform, Alert, Linking } from "react-native";
 import { Link, Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { signUp, confirmSignUp } from 'aws-amplify/auth';
-import AntDesign from "@expo/vector-icons/AntDesign";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Colors, Shadows } from "../../constants/theme";
 
 
@@ -138,6 +138,16 @@ export default function Signup() {
                             <Pressable style={styles.buttonPrimary} onPress={handleSignUp} disabled={loading}>
                                 <Text style={styles.buttonTextPrimary}>{loading ? "Signing Up..." : "Sign Up"}</Text>
                             </Pressable>
+
+                            <Pressable
+                                style={[styles.buttonSecondary, { marginTop: 12 }]}
+                                onPress={() => Linking.openURL('https://main.d346k14opurixl.amplifyapp.com')}
+                            >
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    <FontAwesome name="coffee" size={20} color={Colors.cta} />
+                                    <Text style={styles.buttonTextSecondary}>Host a Nook</Text>
+                                </View>
+                            </Pressable>
                         </>
                     )}
 
@@ -161,21 +171,6 @@ export default function Signup() {
 
                             <Pressable style={[styles.buttonPrimary, { backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.borderLight, marginTop: 10 }]} onPress={() => setStep(1)}>
                                 <Text style={[styles.buttonTextPrimary, { color: Colors.primary }]}>Back</Text>
-                            </Pressable>
-                        </>
-                    )}
-
-                    {step === 1 && (
-                        <>
-                            <View style={styles.dividerContainer}>
-                                <View style={styles.dividerLine} />
-                                <Text style={styles.dividerText}>or</Text>
-                                <View style={styles.dividerLine} />
-                            </View>
-
-                            <Pressable style={styles.buttonSocial}>
-                                <AntDesign name="google" size={24} color={Colors.primary} />
-                                <Text style={styles.buttonTextSocial}>Sign up with Google</Text>
                             </Pressable>
                         </>
                     )}
@@ -253,38 +248,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "700",
     },
-    dividerContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-        marginTop: 8,
-        marginBottom: 8,
-    },
-    dividerLine: {
-        flex: 1,
-        height: 1,
-        backgroundColor: Colors.borderLight,
-    },
-    dividerText: {
-        color: Colors.textSecondary,
-        fontSize: 14,
-    },
-    buttonSocial: {
-        backgroundColor: Colors.white,
-        paddingVertical: 16,
-        borderRadius: 16,
-        alignItems: "center",
-        flexDirection: "row",
-        justifyContent: "center",
-        gap: 12,
-        borderWidth: 1,
-        borderColor: Colors.borderLight,
-    },
-    buttonTextSocial: {
-        color: Colors.primary,
-        fontSize: 16,
-        fontWeight: "600",
-    },
     footerContainer: {
         flexDirection: "row",
         justifyContent: "center",
@@ -296,6 +259,20 @@ const styles = StyleSheet.create({
     linkText: {
         color: Colors.cta,
         fontSize: 14,
+        fontWeight: "700",
+    },
+    buttonSecondary: {
+        backgroundColor: Colors.white,
+        paddingVertical: 16,
+        borderRadius: 16,
+        alignItems: "center",
+        borderWidth: 1.5,
+        borderColor: Colors.borderLight,
+        ...Shadows.small,
+    },
+    buttonTextSecondary: {
+        color: Colors.cta,
+        fontSize: 16,
         fontWeight: "700",
     },
 });

@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, KeyboardAvoidingView, Platform, Alert } from "react-native";
 import { Link, Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { signIn, signInWithRedirect } from 'aws-amplify/auth';
-import AntDesign from "@expo/vector-icons/AntDesign";
+import { signIn } from 'aws-amplify/auth';
 import { Colors, Shadows } from "../../constants/theme";
 
 export default function Login() {
@@ -67,17 +66,6 @@ export default function Login() {
 
                     <Pressable style={styles.buttonPrimary} onPress={handleSignIn} disabled={loading}>
                         <Text style={styles.buttonTextPrimary}>{loading ? "Signing in..." : "Login"}</Text>
-                    </Pressable>
-
-                    <View style={styles.dividerContainer}>
-                        <View style={styles.dividerLine} />
-                        <Text style={styles.dividerText}>or</Text>
-                        <View style={styles.dividerLine} />
-                    </View>
-
-                    <Pressable style={styles.buttonSocial} onPress={() => signInWithRedirect({ provider: 'Google' })}>
-                        <AntDesign name="google" size={24} color={Colors.primary} />
-                        <Text style={styles.buttonTextSocial}>Login with Google</Text>
                     </Pressable>
                 </View>
 
@@ -152,38 +140,6 @@ const styles = StyleSheet.create({
         color: Colors.white,
         fontSize: 16,
         fontWeight: "700",
-    },
-    dividerContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-        marginTop: 8,
-        marginBottom: 8,
-    },
-    dividerLine: {
-        flex: 1,
-        height: 1,
-        backgroundColor: Colors.borderLight,
-    },
-    dividerText: {
-        color: Colors.textSecondary,
-        fontSize: 14,
-    },
-    buttonSocial: {
-        backgroundColor: Colors.white,
-        paddingVertical: 16,
-        borderRadius: 16,
-        alignItems: "center",
-        flexDirection: "row",
-        justifyContent: "center",
-        gap: 12,
-        borderWidth: 1,
-        borderColor: Colors.borderLight,
-    },
-    buttonTextSocial: {
-        color: Colors.primary,
-        fontSize: 16,
-        fontWeight: "600",
     },
     footerContainer: {
         flexDirection: "row",
