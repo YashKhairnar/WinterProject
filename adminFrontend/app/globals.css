@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+:root {
+  /* Coffee Culture Theme */
+  --background: 42 50% 97.4%;
+  /* #FCF9F2 - Soft Cream */
+  --foreground: 0 0% 17.3%;
+  /* #2C2C2C - Dark Charcoal */
+
+  --card: 0 0% 100%;
+  /* White */
+  --card-foreground: 0 0% 17.3%;
+
+  --popover: 42 50% 97.4%;
+  --popover-foreground: 0 0% 17.3%;
+
+  --primary: 24 33% 18.2%;
+  /* #3D2B1F - Deep Espresso */
+  --primary-foreground: 42 50% 97.4%;
+
+  --secondary: 75 26% 48.4%;
+  /* #8A9A5B - Muted Sage */
+  --secondary-foreground: 42 50% 97.4%;
+
+  --muted: 0 0% 87.8%;
+  /* #E0E0E0 - Light Border/Muted */
+  --muted-foreground: 0 0% 45.9%;
+  /* #757575 - Soft Gray */
+
+  --accent: 31 54% 51.8%;
+  /* #C68642 - Subtle Caramel */
+  --accent-foreground: 42 50% 97.4%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 42 50% 97.4%;
+
+  --border: 0 0% 87.8%;
+  /* #E0E0E0 */
+  --input: 0 0% 87.8%;
+  --ring: 24 33% 18.2%;
+
+  --radius: 0.75rem;
+  /* Slightly tighter radius for professional web look */
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  @keyframes accordion-down {
+    from {
+      height: 0
+    }
+
+    to {
+      height: var(--radix-accordion-content-height)
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height)
+    }
+
+    to {
+      height: 0
+    }
+  }
+}
+
+body {
+  @apply bg-background text-foreground;
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+/* Minimalist Coffee Utilities */
+.glass {
+  @apply bg-background/60 backdrop-blur-md border border-primary/5 shadow-sm;
+}
+
+.glass-card {
+  @apply bg-card border border-border shadow-sm;
+  @apply rounded-2xl p-6 transition-all duration-300;
+  @apply hover:shadow-md hover:border-accent/20;
+}
+
+/* Custom Utilities */
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
+}
