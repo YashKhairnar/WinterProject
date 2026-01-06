@@ -139,7 +139,7 @@ class InfraStack(Stack):
             cors=[
                 s3.CorsRule(
                     allowed_methods=[s3.HttpMethods.GET, s3.HttpMethods.PUT, s3.HttpMethods.POST, s3.HttpMethods.HEAD],
-                    allowed_origins=["http://localhost:3000", "http://localhost:8081", "https://d1qciprdjl1a7f.cloudfront.net"],
+                    allowed_origins=["http://localhost:3000", "http://localhost:8081", "https://d1qciprdjl1a7f.cloudfront.net", "https://main.d346k14opurixl.amplifyapp.com"],
                     allowed_headers=["*"],
                     max_age=3000
                 )

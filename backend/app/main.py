@@ -45,6 +45,7 @@ app.add_middleware(
         "http://localhost:8081",
         "http://127.0.0.1:8081",
         "https://d1qciprdjl1a7f.cloudfront.net", # Admin Production URL
+        "https://main.d346k14opurixl.amplifyapp.com", # Admin Amplify URL
     ],
     allow_credentials=True,
     allow_methods=["*"],
