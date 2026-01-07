@@ -68,7 +68,10 @@ export default function Home() {
           {/* Logo & Intro */}
           <div className="space-y-6">
             <div className="space-y-2">
-              <h1 className="text-5xl font-black text-foreground tracking-tighter">nook</h1>
+              <div className="flex items-center gap-3">
+                <img src="/logo.png" alt="nook" className="w-12 h-12 rounded-xl" />
+                <h1 className="text-5xl font-black text-foreground tracking-tighter">nook</h1>
+              </div>
               <p className="text-muted-foreground/80 font-medium text-lg leading-relaxed">
                 Your perfect nook, nearby.
               </p>
@@ -91,21 +94,6 @@ export default function Home() {
             >
               Become a Host
             </Link>
-
-            <div className="relative py-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-4 text-muted-foreground/60 font-bold tracking-widest">or continue with</span>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <button className="flex-1 py-4 px-6 rounded-2xl bg-card border border-border flex items-center justify-center hover:bg-muted transition-all duration-300 hover:border-primary/20">
-                <span className="font-bold">Google</span>
-              </button>
-            </div>
           </div>
 
           <footer className="pt-12 text-sm text-muted-foreground/50 font-medium">
