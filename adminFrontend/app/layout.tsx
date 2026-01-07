@@ -11,6 +11,10 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: "nook | Manage Your Business",
   description: "Comprehensive admin dashboard for cafe owners",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
