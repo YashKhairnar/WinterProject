@@ -49,6 +49,7 @@ export default function Home() {
           <div className="flex items-center gap-3 drop-shadow-lg">
             <span className="w-8 h-[2px] bg-primary-foreground/80" />
             <span className="text-sm font-bold tracking-[0.2em] uppercase text-primary-foreground">Welcome to Nook</span>
+            <span className="w-8 h-[2px] bg-primary-foreground/80" />
           </div>
           <h2 className="text-3xl md:text-5xl lg:text-6xl font-black leading-[1.1] tracking-tight text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]">
             Managing your <br className="hidden md:block" />
