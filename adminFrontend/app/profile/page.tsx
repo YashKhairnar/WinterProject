@@ -273,7 +273,7 @@ function EditableGallery({
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
-                <h3 className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest">Gallery ({photos.length})</h3>
+                <h3 className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest">Visual Moments ({photos.length})</h3>
                 <div>
                     <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
                     <button
@@ -506,7 +506,7 @@ export default function CafeProfilePage() {
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                                 <div className="lg:col-span-2 space-y-8">
                                     <section>
-                                        <h3 className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest mb-3">About</h3>
+                                        <h3 className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest mb-3">The Essence</h3>
                                         <EditableText
                                             value={cafe.description}
                                             onSave={(val) => handleUpdate('description', val)}
@@ -526,7 +526,7 @@ export default function CafeProfilePage() {
                                     </section>
 
                                     <section>
-                                        <h3 className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest mb-3">Menu Photos</h3>
+                                        <h3 className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest mb-3">Sips & Bites</h3>
                                         <EditableGallery
                                             photos={cafe.menu_photos || []}
                                             onSave={(val) => handleUpdate('menu_photos', val)}
@@ -535,7 +535,7 @@ export default function CafeProfilePage() {
                                     </section>
 
                                     <section>
-                                        <h3 className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest mb-3">Amenities</h3>
+                                        <h3 className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest mb-3">Comforts & Perks</h3>
                                         <EditableAmenities
                                             value={cafe.amenities || []}
                                             onSave={(val) => handleUpdate('amenities', val)}
@@ -545,7 +545,7 @@ export default function CafeProfilePage() {
 
                                 <div className="space-y-6">
                                     <div className="bg-muted p-6 rounded-2xl border border-border/50 shadow-sm">
-                                        <h3 className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest mb-4">Quick Stats</h3>
+                                        <h3 className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest mb-4">At a Glance</h3>
                                         <div className="space-y-4">
                                             <div className="flex justify-between items-center">
                                                 <span className="text-muted-foreground">2-Seat Tables</span>
@@ -577,7 +577,7 @@ export default function CafeProfilePage() {
                                     </div>
 
                                     <div className="space-y-3">
-                                        <h3 className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest">Connect</h3>
+                                        <h3 className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest">Get in Touch</h3>
 
                                         <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group">
                                             <span className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">🌐</span>
@@ -631,16 +631,16 @@ export default function CafeProfilePage() {
                             </div>
 
                             {/* Danger Zone */}
-                            <div className="mt-12 pt-8 border-t border-red-100">
-                                <h3 className="text-sm font-bold text-red-600 uppercase tracking-widest mb-4">Danger Zone</h3>
-                                <div className="bg-red-50/50 rounded-2xl p-6 border border-red-100 flex flex-col md:flex-row items-center justify-between gap-4">
+                            <div className="mt-12 pt-8 border-t border-border/50">
+                                <h3 className="text-sm font-bold text-primary uppercase tracking-widest mb-4">Danger Zone</h3>
+                                <div className="bg-muted rounded-2xl p-6 border border-border flex flex-col md:flex-row items-center justify-between gap-4">
                                     <div>
-                                        <h4 className="font-bold text-red-900">Delete Cafe Permanently</h4>
-                                        <p className="text-sm text-red-700/70">Once you delete your cafe, there is no going back. Please be certain.</p>
+                                        <h4 className="font-bold text-foreground">Delete Cafe Permanently</h4>
+                                        <p className="text-sm text-muted-foreground">Once you delete your cafe, there is no going back. Please be certain.</p>
                                     </div>
                                     <button
                                         onClick={() => setShowDeleteModal(true)}
-                                        className="bg-red-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-600/20 whitespace-nowrap"
+                                        className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-bold hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20 whitespace-nowrap"
                                     >
                                         Delete Cafe
                                     </button>
@@ -652,10 +652,10 @@ export default function CafeProfilePage() {
 
                 {/* Delete Cafe Modal */}
                 {showDeleteModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-red-500/10 backdrop-blur-md animate-in fade-in duration-300">
-                        <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md p-8 border-2 border-red-100 scale-100 animate-in zoom-in-95 duration-200">
-                            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-6 mx-auto">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary/10 backdrop-blur-md animate-in fade-in duration-300">
+                        <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md p-8 border border-border scale-100 animate-in zoom-in-95 duration-200">
+                            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 mx-auto">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
                                     <path d="M3 6h18"></path>
                                     <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
                                     <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
@@ -666,7 +666,7 @@ export default function CafeProfilePage() {
 
                             <h3 className="text-2xl font-bold text-foreground mb-3 text-center">Delete Cafe?</h3>
                             <p className="text-muted-foreground text-center mb-8 leading-relaxed">
-                                This action is <span className="text-red-600 font-bold uppercase underline">permanent</span>.
+                                This action is <span className="text-primary font-bold uppercase underline">permanent</span>.
                                 All reservations, reviews, and cafe photos will be gone forever.
                             </p>
 
@@ -674,12 +674,12 @@ export default function CafeProfilePage() {
                                 <button
                                     onClick={handleDeleteCafe}
                                     disabled={isDeleting}
-                                    className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 ${isDeleting ? "bg-red-400 cursor-not-allowed" : "bg-red-600 hover:bg-red-700 shadow-red-500/20"
+                                    className={`w-full py-4 rounded-xl font-bold text-primary-foreground shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 ${isDeleting ? "bg-primary/70 cursor-not-allowed" : "bg-primary hover:bg-primary/90 shadow-primary/20"
                                         }`}
                                 >
                                     {isDeleting ? (
                                         <>
-                                            <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                                            <div className="w-5 h-5 border-3 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
                                             <span>Deleting...</span>
                                         </>
                                     ) : (

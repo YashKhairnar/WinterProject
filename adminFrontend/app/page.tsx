@@ -69,7 +69,10 @@ export default function Home() {
           {/* Logo & Intro */}
           <div className="space-y-6">
             <div className="space-y-2">
-              <h1 className="text-5xl font-black text-foreground tracking-tighter">nook</h1>
+              <div className="flex items-center gap-3">
+                <img src="/logo.png" alt="nook" className="w-12 h-12 rounded-xl" />
+                <h1 className="text-5xl font-black text-foreground tracking-tighter">nook</h1>
+              </div>
               <p className="text-muted-foreground/80 font-medium text-lg leading-relaxed">
                 Your perfect nook, nearby.
               </p>

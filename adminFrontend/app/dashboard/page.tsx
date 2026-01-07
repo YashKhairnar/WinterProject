@@ -330,11 +330,9 @@ export default function DashboardPage() {
         <div className="flex min-h-screen bg-background">
             {/* Sidebar */}
             <aside className="w-64 hidden md:block bg-card border-r border-border p-6 fixed h-full z-10">
-                <div className="flex items-center gap-2 mb-8">
-                    <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold">
-                        C
-                    </div>
-                    <span className="font-bold text-xl tracking-tight text-foreground">Nook</span>
+                <div className="flex items-center gap-3 mb-8">
+                    <img src="/logo.png" alt="nook" className="w-8 h-8 rounded-lg" />
+                    <span className="font-bold text-xl tracking-tight text-foreground">nook</span>
                 </div>
 
                 <nav className="space-y-2">
