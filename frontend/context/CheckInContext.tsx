@@ -32,7 +32,8 @@ export function CheckInProvider({ children }: { children: ReactNode }) {
                     }
                 }
             } catch (error) {
-                console.error("Error initializing CheckInContext:", error);
+                // console.error("Error initializing CheckInContext:", error);
+                // ignore and be there on the landing page
             } finally {
                 setLoading(false);
             }

@@ -453,7 +453,7 @@ export default function CafeProfile() {
 
         return (
             <View style={styles.storiesSection}>
-                <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>Live Updates</Text>
+                <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>Happening Now</Text>
 
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <ScrollView
@@ -833,7 +833,7 @@ export default function CafeProfile() {
                     {/* Description (Clean) */}
                     {cafe.description && (
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>About</Text>
+                            <Text style={styles.sectionTitle}>The Essence</Text>
                             <Text style={styles.descriptionText}>{cafe.description}</Text>
                         </View>
                     )}
@@ -844,7 +844,7 @@ export default function CafeProfile() {
                     {/* Gallery - Only show if photos exist */}
                     {/* Gallery */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Gallery</Text>
+                        <Text style={styles.sectionTitle}>Visual Moments</Text>
                         {cafe.cafe_photos && cafe.cafe_photos.length > 0 ? (
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryScroll}>
                                 {cafe.cafe_photos.map((img, idx) => (
@@ -869,7 +869,7 @@ export default function CafeProfile() {
 
                     {/* Menu */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Menu</Text>
+                        <Text style={styles.sectionTitle}>Sips & Bites</Text>
                         {cafe.menu_photos && cafe.menu_photos.length > 0 ? (
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryScroll}>
                                 {cafe.menu_photos.map((img, idx) => (
@@ -892,7 +892,7 @@ export default function CafeProfile() {
 
                     {/* Amenities */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Amenities</Text>
+                        <Text style={styles.sectionTitle}>Comforts & Perks</Text>
                         {cafe.amenities && cafe.amenities.length > 0 ? (
                             <View style={styles.tagsContainer}>
                                 {cafe.amenities.map((amenity, index) => (
@@ -910,7 +910,7 @@ export default function CafeProfile() {
                     {/* Info */}
                     <View style={styles.section}>
                         <View style={styles.sectionHeaderRow}>
-                            <Text style={styles.sectionTitle}>Business Hours</Text>
+                            <Text style={styles.sectionTitle}>When to Visit</Text>
                             <View style={[
                                 styles.statusBadge,
                                 { backgroundColor: formatHours().status === 'Open' ? Colors.accent + '20' : Colors.error + '10' }
@@ -960,14 +960,14 @@ export default function CafeProfile() {
 
                     {/* Occupancy Trend */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Occupancy Trend</Text>
+                        <Text style={styles.sectionTitle}>Crowd Trends</Text>
                         {renderOccupancyTrend()}
                     </View>
 
                     {/* Reviews */}
                     <View style={styles.section}>
                         <View style={styles.rowBetween}>
-                            <Text style={styles.sectionTitle}>Reviews</Text>
+                            <Text style={styles.sectionTitle}>Community Voice</Text>
                             {isCheckedIn(cafeId) && (
                                 <Pressable
                                     style={styles.addReviewBtn}

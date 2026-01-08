@@ -14,7 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getImageUrl } from "../utils/image";
 import { logger } from "../utils/logger";
-import { Colors, Shadows } from "../constants/theme";
+import { Colors, Shadows, Typography } from "../constants/theme";
 
 const PREFERENCE_OPTIONS = {
     vibes: ['Chill', 'Busy', 'Loud', 'Perfect', 'Cozy', 'Minimalist', 'Lively', 'Outdoorsy'],
@@ -839,6 +839,22 @@ export default function Home() {
                                     </Pressable>
                                 </View>
 
+                                {/* Story Tags */}
+                                <View style={[styles.storyTagsContainer, { bottom: 40 }]}>
+                                    {selectedCafeForStory.activeStories[fullscreenStoryIndex].vibe && (
+                                        <View style={styles.storyTagPill}>
+                                            <AntDesign name="rocket" size={14} color={Colors.white} />
+                                            <Text style={styles.storyTagText}>{selectedCafeForStory.activeStories[fullscreenStoryIndex].vibe}</Text>
+                                        </View>
+                                    )}
+                                    {selectedCafeForStory.activeStories[fullscreenStoryIndex].visit_purpose && (
+                                        <View style={styles.storyTagPill}>
+                                            <Feather name="coffee" size={14} color={Colors.white} />
+                                            <Text style={styles.storyTagText}>{selectedCafeForStory.activeStories[fullscreenStoryIndex].visit_purpose}</Text>
+                                        </View>
+                                    )}
+                                </View>
+
                                 {/* Navigation Taps */}
                                 <View style={styles.storyNavContainer}>
                                     <Pressable
@@ -1115,7 +1131,7 @@ const styles = StyleSheet.create({
     },
     listTitle: {
         fontSize: 20,
-        fontWeight: "700",
+        fontFamily: Typography.black,
         color: Colors.textPrimary,
     },
     listContent: {
@@ -1152,7 +1168,7 @@ const styles = StyleSheet.create({
     },
     emptyStateTitle: {
         fontSize: 20,
-        fontWeight: '700',
+        fontFamily: Typography.black,
         color: Colors.textPrimary,
         marginBottom: 12,
         textAlign: 'center',
@@ -1173,7 +1189,7 @@ const styles = StyleSheet.create({
     clearFiltersText: {
         color: Colors.white,
         fontSize: 16,
-        fontWeight: '600',
+        fontFamily: Typography.bold,
     },
     storyRing: {
         width: 86,
@@ -1215,7 +1231,7 @@ const styles = StyleSheet.create({
     },
     cafeName: {
         fontSize: 16,
-        fontWeight: "600",
+        fontFamily: Typography.bold,
         color: Colors.textPrimary,
         flex: 1,
     },
@@ -1375,5 +1391,30 @@ const styles = StyleSheet.create({
     },
     storyNavBtn: {
         flex: 1,
+    },
+    storyTagsContainer: {
+        position: 'absolute',
+        left: 20,
+        right: 20,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        zIndex: 100,
+    },
+    storyTagPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
+    },
+    storyTagText: {
+        color: Colors.white,
+        fontSize: 13,
+        fontWeight: '600',
     },
 });

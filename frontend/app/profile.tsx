@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, FlatList, Modal, TextInput, Switch } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, FlatList, Modal, TextInput, Switch, Alert } from "react-native";
 import { useState, useEffect } from "react";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -12,8 +12,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSavedCafes } from "../context/SavedCafesContext";
 import { signOut, fetchUserAttributes } from 'aws-amplify/auth';
 import { getImageUrl } from "../utils/image";
-import { Colors, Shadows } from "../constants/theme";
+import { Colors, Shadows, Typography } from "../constants/theme";
 import { logger } from "../utils/logger";
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 
 
 export default function Profile() {
@@ -135,7 +137,9 @@ export default function Profile() {
                     id: u.id,
                     cafe: u.cafe_name || 'Cafe',
                     time: new Date(u.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    image: getImageUrl(u.image_url) || u.image_url
+                    image: getImageUrl(u.image_url) || u.image_url,
+                    vibe: u.vibe,
+                    visit_purpose: u.visit_purpose
                 }));
                 console.log('Mapped updates:', mappedUpdates);
                 setUpdates(mappedUpdates);
@@ -255,6 +259,39 @@ export default function Profile() {
         });
     };
 
+    const handleShareToInstagram = async (imageUrl: string) => {
+        try {
+            const isSharingAvailable = await Sharing.isAvailableAsync();
+            if (!isSharingAvailable) {
+                Alert.alert("Sharing Not Available", "Sharing is not supported on this device.");
+                return;
+            }
+
+            logger.info('Profile', 'Starting Instagram share', { imageUrl });
+
+            // Download file to local storage
+            const filename = imageUrl.split('/').pop() || 'story.jpg';
+            const localUri = FileSystem.cacheDirectory + filename;
+
+            const downloadResult = await FileSystem.downloadAsync(imageUrl, localUri);
+
+            if (downloadResult.status !== 200) {
+                throw new Error("Failed to download image for sharing");
+            }
+
+            // Open share sheet
+            await Sharing.shareAsync(downloadResult.uri, {
+                mimeType: 'image/jpeg',
+                dialogTitle: 'Share your Nook Story',
+                UTI: 'public.jpeg'
+            });
+
+        } catch (error: any) {
+            logger.error('Profile', 'Error sharing to Instagram', { error: error.message });
+            Alert.alert("Error", "Could not share story: " + error.message);
+        }
+    };
+
     const stats = {
         cafesVisited: 42,
         streak: 12, // days
@@ -333,7 +370,19 @@ export default function Profile() {
                                     <View style={styles.updateInfo}>
                                         <Text style={styles.updateCafe}>{update.cafe}</Text>
                                         <Text style={styles.updateTime}>{update.time}</Text>
+                                        {(update.vibe || update.visit_purpose) && (
+                                            <View style={styles.updateTagsInline}>
+                                                {update.vibe && <Text style={styles.inlineTag}>#{update.vibe}</Text>}
+                                                {update.visit_purpose && <Text style={styles.inlineTag}>#{update.visit_purpose}</Text>}
+                                            </View>
+                                        )}
                                     </View>
+                                    <Pressable
+                                        style={styles.shareOverlayBtn}
+                                        onPress={() => handleShareToInstagram(update.image)}
+                                    >
+                                        <AntDesign name="instagram" size={16} color={Colors.white} />
+                                    </Pressable>
                                 </View>
                             ))}
                         </ScrollView>
@@ -402,16 +451,16 @@ export default function Profile() {
                         console.error("Error signing out: ", error);
                     }
                 }}>
-                    <Feather name="log-out" size={20} color={Colors.error} />
+                    <Feather name="log-out" size={20} color={Colors.textSecondary} />
                     <Text style={styles.logoutText}>Log Out</Text>
                 </Pressable>
 
                 <Pressable
-                    style={[styles.logoutBtn, { backgroundColor: Colors.error + '05', borderColor: Colors.error + '10', marginTop: 10 }]}
+                    style={styles.deleteAccountBtn}
                     onPress={() => setDeleteModalVisible(true)}
                 >
-                    <AntDesign name="delete" size={20} color={Colors.error} />
-                    <Text style={styles.logoutText}>Delete Account Permanently</Text>
+                    <AntDesign name="delete" size={20} color={Colors.textSecondary} />
+                    <Text style={styles.deleteAccountText}>Delete Account Permanently</Text>
                 </Pressable>
 
             </ScrollView>
@@ -543,7 +592,7 @@ export default function Profile() {
                 <View style={styles.centeredModal}>
                     <View style={styles.confirmModal}>
                         <View style={styles.warningIcon}>
-                            <Feather name="alert-triangle" size={32} color={Colors.error} />
+                            <Feather name="alert-triangle" size={32} color={Colors.primary} />
                         </View>
                         <Text style={styles.confirmTitle}>Delete Account?</Text>
                         <Text style={styles.confirmDesc}>
@@ -619,12 +668,13 @@ const styles = StyleSheet.create({
     },
     username: {
         fontSize: 24,
-        fontWeight: '800',
+        fontFamily: Typography.black,
         color: Colors.textPrimary,
     },
     userHandle: {
         fontSize: 14,
         color: Colors.textSecondary,
+        fontFamily: Typography.semiBold,
         marginTop: 2,
     },
     editBtn: {
@@ -722,6 +772,19 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%',
     },
+    shareOverlayBtn: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
+    },
     updateGradient: {
         position: 'absolute',
         left: 0, right: 0, bottom: 0,
@@ -738,8 +801,21 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     updateTime: {
-        color: 'rgba(255,255,255,0.8)',
+        color: Colors.white + '99',
         fontSize: 12,
+        fontFamily: Typography.regular,
+    },
+    updateTagsInline: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 4,
+        marginTop: 4,
+    },
+    inlineTag: {
+        color: Colors.cta,
+        fontSize: 10,
+        fontFamily: Typography.bold,
+        textTransform: 'lowercase',
     },
     tagsContainer: {
         flexDirection: 'row',
@@ -812,18 +888,36 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         gap: 8,
         marginTop: 40,
-        marginBottom: 40,
         paddingVertical: 16,
         marginHorizontal: 24,
-        backgroundColor: Colors.error + '10',
+        backgroundColor: Colors.borderLight + '50',
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: Colors.error + '20',
+        borderColor: Colors.borderLight,
     },
     logoutText: {
         fontSize: 16,
         fontWeight: '600',
-        color: Colors.error,
+        color: Colors.textSecondary,
+    },
+    deleteAccountBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        marginTop: 10,
+        marginBottom: 40,
+        paddingVertical: 16,
+        marginHorizontal: 24,
+        backgroundColor: Colors.borderLight + '20',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: Colors.borderLight + '50',
+    },
+    deleteAccountText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: Colors.textSecondary,
     },
     modalContainer: {
         flex: 1,
@@ -930,7 +1024,7 @@ const styles = StyleSheet.create({
         width: 64,
         height: 64,
         borderRadius: 32,
-        backgroundColor: Colors.error + '15',
+        backgroundColor: Colors.primary + '10',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 20,
@@ -966,7 +1060,7 @@ const styles = StyleSheet.create({
         borderColor: Colors.borderLight,
     },
     deleteBtn: {
-        backgroundColor: Colors.error,
+        backgroundColor: Colors.primary,
     },
     cancelBtnText: {
         fontSize: 14,
