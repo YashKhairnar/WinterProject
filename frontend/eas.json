@@ -14,7 +14,7 @@
     "preview": {
       "distribution": "internal",
       "android": {
-        "buildType": "apk",
+        "buildType": "apk"
       },
       "env": {
         "EXPO_PUBLIC_USER_POOL_ID": "us-east-1_AONItPvgt",
