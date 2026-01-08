@@ -22,18 +22,11 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#3D2B1F",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/images/icon.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.yashk11.nook",
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyAhfHQpsnekTMdLgkY9djA_toF9vJwP1Ic"
-        }
-      }
+      "package": "com.yashk11.nook"
     },
     "web": {
       "output": "static",
