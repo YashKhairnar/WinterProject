@@ -522,7 +522,7 @@ export default function Home() {
                             longitudeDelta: 0.0421,
                         }}
                         showsUserLocation
-                        showsMyLocationButton
+                        showsMyLocationButton={false}
                     >
                         {filteredCafes.map(cafe => (
                             <Marker

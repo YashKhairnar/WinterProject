@@ -28,7 +28,12 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.yashk11.nook"
+      "package": "com.yashk11.nook",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAhfHQpsnekTMdLgkY9djA_toF9vJwP1Ic"
+        }
+      }
     },
     "web": {
       "output": "static",
@@ -39,7 +44,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#FDFCF8",
