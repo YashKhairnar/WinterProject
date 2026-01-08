@@ -17,6 +17,13 @@ export const Colors = {
     background: '#FCF9F2', // Alias for backgroundLight
 };
 
+export const Typography = {
+    regular: 'Outfit_400Regular',
+    semiBold: 'Outfit_600SemiBold',
+    bold: 'Outfit_700Bold',
+    black: 'Outfit_900Black',
+};
+
 export const Shadows = {
     small: {
         shadowColor: "#000",

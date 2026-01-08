@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { getCurrentUser } from "aws-amplify/auth";
-import { Colors, Shadows } from "../constants/theme";
+import { Colors, Shadows, Typography } from "../constants/theme";
 
 const { width } = Dimensions.get("window");
 
@@ -34,6 +34,11 @@ export default function LandingPage() {
       <View style={styles.outerContainer}>
         {/* Top Section: Branding */}
         <View style={styles.headerSection}>
+          <Image
+            source={require("../assets/images/icon.png")}
+            style={styles.logo}
+            contentFit="contain"
+          />
           <View style={styles.welcomeContainer}>
             <View style={styles.welcomeLine} />
             <Text style={styles.welcomeText}>WELCOME TO</Text>
@@ -105,12 +110,18 @@ const styles = StyleSheet.create({
   welcomeText: {
     color: "rgba(0,0,0,0.3)",
     fontSize: 10,
-    fontWeight: "800",
+    fontFamily: Typography.black,
     letterSpacing: 2,
+  },
+  logo: {
+    width: 64,
+    height: 64,
+    marginBottom: 20,
+    borderRadius: 16,
   },
   title: {
     fontSize: 56,
-    fontWeight: "900",
+    fontFamily: Typography.black,
     color: "#1A1A1A",
     letterSpacing: -2,
     lineHeight: 56,
@@ -118,7 +129,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 17,
     color: "rgba(0,0,0,0.5)",
-    fontWeight: "600",
+    fontFamily: Typography.semiBold,
     marginTop: 0,
     letterSpacing: -0.3,
   },
@@ -151,7 +162,7 @@ const styles = StyleSheet.create({
   buttonTextPrimary: {
     color: "#FFFFFF",
     fontSize: 18,
-    fontWeight: "800",
+    fontFamily: Typography.black,
     letterSpacing: 0.5,
   },
   buttonSecondary: {
@@ -165,7 +176,7 @@ const styles = StyleSheet.create({
   buttonTextSecondary: {
     color: "#1A1A1A",
     fontSize: 18,
-    fontWeight: "700",
+    fontFamily: Typography.bold,
     letterSpacing: 0.5,
   },
   footerText: {
@@ -173,6 +184,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: "center",
     marginTop: 16,
-    fontWeight: "600",
+    fontFamily: Typography.semiBold,
   },
 });

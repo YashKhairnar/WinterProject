@@ -12,6 +12,10 @@ import { useCheckIn } from "../../../context/CheckInContext";
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { fetchUserAttributes } from 'aws-amplify/auth';
 import { Colors, Shadows } from "../../../constants/theme";
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
+import { LinearGradient } from 'expo-linear-gradient';
+import { logger } from "../../../utils/logger";
 
 
 
@@ -276,6 +280,33 @@ export default function CheckIn() {
         }
     };
 
+    const handleShareToInstagram = async () => {
+        if (!capturedPhotoUri) return;
+
+        try {
+            const isSharingAvailable = await Sharing.isAvailableAsync();
+            if (!isSharingAvailable) {
+                Alert.alert("Sharing Not Available", "Sharing is not supported on this device.");
+                return;
+            }
+
+            logger.info('CheckIn', 'Starting Instagram share', { capturedPhotoUri });
+
+            // Since it's already a local URI from the camera, we can share it directly!
+            // But sometimes Sharing.shareAsync works better with a cache copy or certain extensions.
+            // We'll trust the camera URI for now.
+            await Sharing.shareAsync(capturedPhotoUri, {
+                mimeType: 'image/jpeg',
+                dialogTitle: 'Share your Nook Story',
+                UTI: 'public.jpeg'
+            });
+
+        } catch (error: any) {
+            logger.error('CheckIn', 'Error sharing to Instagram', { error: error.message });
+            Alert.alert("Error", "Could not share story: " + error.message);
+        }
+    };
+
     // Step 3: Success
     const renderSuccess = () => (
         <View style={styles.stepContainer}>
@@ -299,6 +330,18 @@ export default function CheckIn() {
                 <MaterialIcons name="check" size={20} color={Colors.success} />
                 <Text style={styles.successText}>Story uploaded successfully!</Text>
             </View>
+
+            <Pressable style={styles.instaBtn} onPress={handleShareToInstagram}>
+                <LinearGradient
+                    colors={['#833AB4', '#F56040', '#FCAF45']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.instaGradient}
+                >
+                    <AntDesign name="instagram" size={20} color={Colors.white} />
+                    <Text style={styles.instaText}>Share to Instagram Stories</Text>
+                </LinearGradient>
+            </Pressable>
 
             <Pressable style={styles.nextBtn} onPress={() => router.back()}>
                 <Text style={styles.btnText}>Done</Text>
