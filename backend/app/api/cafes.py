@@ -126,11 +126,12 @@ async def create_cafe(
 @cafes_router.post('/upload', status_code=201)
 async def upload_cafe_photo(
     file: UploadFile = File(...),
+    category: str = "cafe_user_uploads",
     db: Session = Depends(get_db)
 ):
     try:
         content = await file.read()
-        url = save_to_s3(content, file.filename, 'cafe_user_uploads')
+        url = save_to_s3(content, file.filename, category)
         return {"url": url}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error uploading file: {str(e)}")

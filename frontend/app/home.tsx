@@ -68,7 +68,7 @@ export default function Home() {
 
     // Advanced Filters State
     const [showFilterModal, setShowFilterModal] = useState(false);
-    const [radius, setRadius] = useState<number>(100); // km - increased to 100 for dev testing
+    const [radius, setRadius] = useState<number>(5); // km - default to 5km
 
     const [minRating, setMinRating] = useState<number>(0);
     const [filterOccupancy, setFilterOccupancy] = useState<string[]>([]);
@@ -189,17 +189,31 @@ export default function Home() {
 
     useEffect(() => {
         (async () => {
-            let { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') {
-                setErrorMsg('Permission to access location was denied');
-                // Still fetch cafes even if location denied (distance will be 0)
-                fetchCafes(null);
-                return;
-            }
+            try {
+                let { status } = await Location.requestForegroundPermissionsAsync();
+                if (status !== 'granted') {
+                    setErrorMsg('Permission to access location was denied');
+                    fetchCafes(null);
+                    return;
+                }
 
-            let loc = await Location.getCurrentPositionAsync({});
-            setLocation(loc);
-            fetchCafes(loc);
+                // Try to get last known position first (fast)
+                let loc = await Location.getLastKnownPositionAsync({});
+
+                // If we don't have a recent last known position, try getting current
+                if (!loc) {
+                    loc = await Location.getCurrentPositionAsync({
+                        accuracy: Location.Accuracy.Highest
+                    });
+                }
+
+                setLocation(loc);
+                fetchCafes(loc);
+            } catch (err) {
+                logger.error('Home', 'Error getting location', { error: (err as any).message });
+                // Fallback: fetch cafes without location
+                fetchCafes(null);
+            }
         })();
     }, []);
 
@@ -310,7 +324,7 @@ export default function Home() {
 
 
     const resetFilters = () => {
-        setRadius(100);
+        setRadius(5);
         setMinRating(0);
         setFilterOccupancy([]);
         setFilterVibes([]);
@@ -524,17 +538,23 @@ export default function Home() {
                         showsUserLocation
                         showsMyLocationButton={false}
                     >
-                        {filteredCafes.map(cafe => (
-                            <Marker
-                                key={cafe.id}
-                                coordinate={{ latitude: location.coords.latitude + (Math.random() * 0.02 - 0.01), longitude: location.coords.longitude + (Math.random() * 0.02 - 0.01) }}
-                                title={cafe.name}
-                            >
-                                <View style={styles.markerContainer}>
-                                    <View style={[styles.markerDot, { backgroundColor: getOccupancyColor(cafe.occupancy) }]} />
-                                </View>
-                            </Marker>
-                        ))}
+                        {filteredCafes.map(cafe => {
+                            if (!cafe.latitude || !cafe.longitude) return null;
+                            return (
+                                <Marker
+                                    key={cafe.id}
+                                    coordinate={{
+                                        latitude: Number(cafe.latitude),
+                                        longitude: Number(cafe.longitude)
+                                    }}
+                                    title={cafe.name}
+                                >
+                                    <View style={styles.markerContainer}>
+                                        <View style={[styles.markerDot, { backgroundColor: getOccupancyColor(cafe.occupancy) }]} />
+                                    </View>
+                                </Marker>
+                            );
+                        })}
                     </MapView>
                 ) : (
                     <View style={styles.loadingContainer}>

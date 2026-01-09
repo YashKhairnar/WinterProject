@@ -34,8 +34,8 @@ export default function Sidebar({ profileCompleted, activeTab, setActiveTab }: S
                     href="/dashboard"
                     onClick={() => setActiveTab?.('map')}
                     className={`w-full flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-all ${pathname === '/dashboard' && (activeTab === 'map' || !activeTab)
-                            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/10"
-                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/10"
+                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                         }`}
                 >
                     Seating Map
@@ -45,8 +45,8 @@ export default function Sidebar({ profileCompleted, activeTab, setActiveTab }: S
                     href="/dashboard"
                     onClick={() => setActiveTab?.('reservations')}
                     className={`w-full flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-all ${pathname === '/dashboard' && activeTab === 'reservations'
-                            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/10"
-                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/10"
+                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                         }`}
                 >
                     Reservations
@@ -57,15 +57,25 @@ export default function Sidebar({ profileCompleted, activeTab, setActiveTab }: S
                 <Link
                     href={profileCompleted ? `/profile` : `/onboarding/setup`}
                     className={`block px-4 py-3 rounded-lg text-sm font-medium transition-colors ${pathname === '/profile'
-                            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/10"
-                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/10"
+                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                         }`}
                 >
                     Cafe Profile
                 </Link>
             </nav>
 
-            <div className="absolute bottom-6 left-6 right-6">
+            <div className="absolute bottom-6 left-6 right-6 space-y-2">
+                <Link
+                    href="/privacy"
+                    className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all border border-transparent ${pathname === '/privacy'
+                        ? "bg-primary/10 text-primary border-primary/20"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        }`}
+                >
+                    Privacy Policy
+                </Link>
+
                 <button
                     onClick={handleSignOut}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all border border-transparent"

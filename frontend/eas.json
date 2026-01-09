@@ -12,9 +12,15 @@
       }
     },
     "preview": {
+      "channel": "preview",
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_USER_POOL_ID": "us-east-1_AONItPvgt",
+        "EXPO_PUBLIC_USER_POOL_CLIENT_ID": "1c8k6nrik3qnhl4aglg8gb5a33",
+        "EXPO_PUBLIC_API_URL": "https://hcprgjaknc.execute-api.us-east-1.amazonaws.com/prod"
       }
     },
     "production": {

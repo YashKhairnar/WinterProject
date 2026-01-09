@@ -75,6 +75,10 @@ export default function LandingPage() {
           <Text style={styles.footerText}>
             Join the collective of premier focus spaces.
           </Text>
+
+          <Pressable onPress={() => router.push("/privacy")} style={styles.privacyLink}>
+            <Text style={styles.privacyLinkText}>Privacy Policy</Text>
+          </Pressable>
         </View>
       </View>
     </View>
@@ -185,5 +189,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 16,
     fontFamily: Typography.semiBold,
+  },
+  privacyLink: {
+    paddingVertical: 4,
+    alignSelf: "center",
+  },
+  privacyLinkText: {
+    color: "rgba(0,0,0,0.3)",
+    fontSize: 11,
+    fontFamily: Typography.semiBold,
+    textDecorationLine: "underline",
   },
 });

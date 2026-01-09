@@ -83,13 +83,18 @@ export default function LoginPage() {
                         {loading ? "Signing in..." : "Sign In"}
                     </button>
 
-                    <div className="text-center pt-2">
+                    <div className="text-center pt-2 space-y-3">
                         <p className="text-sm text-muted-foreground">
                             New here?{" "}
                             <Link href="/signup" className="text-accent font-semibold hover:underline">
                                 Create an account
                             </Link>
                         </p>
+                        <div className="pt-2">
+                            <Link href="/privacy" className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors underline">
+                                Privacy Policy
+                            </Link>
+                        </div>
                     </div>
                 </form>
             </div>

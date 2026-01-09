@@ -108,6 +108,29 @@ class InfraStack(Stack):
         # Allow Lambda to connect to RDS on port 5432
         db_instance.connections.allow_default_port_from(cafe_lambda, "Lambda access to DB" )
 
+        # Migration Lambda
+        migration_lambda = PythonFunction(
+            self, "nook-migration-lambda",
+            runtime=_lambda.Runtime.PYTHON_3_11,
+            entry=os.path.join(os.path.dirname(__file__), "../../backend"),
+            index="migration_handler.py",
+            handler="handler",
+            vpc=vpc,
+            timeout=Duration.seconds(60),
+            memory_size=512
+        )
+
+        db_instance.connections.allow_default_port_from(migration_lambda, "Migration Lambda access to DB")
+        
+        migration_lambda.add_environment("DB_HOST", db_instance.instance_endpoint.hostname)
+        migration_lambda.add_environment("DB_NAME", db_name)
+        migration_lambda.add_environment("DB_USER", db_username)
+        migration_lambda.add_environment("DB_PORT", str(db_instance.instance_endpoint.port))
+        
+        if db_instance.secret is not None:
+            migration_lambda.add_environment("DB_SECRET_ARN", db_instance.secret.secret_arn)
+            db_instance.secret.grant_read(migration_lambda)
+
         # Expose some DB connection info to Lambda via env vars
         cafe_lambda.add_environment("DB_HOST",value=db_instance.instance_endpoint.hostname)
         cafe_lambda.add_environment("DB_NAME",value=db_name)
@@ -139,7 +162,7 @@ class InfraStack(Stack):
             cors=[
                 s3.CorsRule(
                     allowed_methods=[s3.HttpMethods.GET, s3.HttpMethods.PUT, s3.HttpMethods.POST, s3.HttpMethods.HEAD],
-                    allowed_origins=["http://localhost:3000", "http://localhost:8081", "https://d1qciprdjl1a7f.cloudfront.net", "https://main.d346k14opurixl.amplifyapp.com", "https://nookstudio.online"],
+                    allowed_origins=["http://localhost:3000", "http://localhost:8081", "https://d1qciprdjl1a7f.cloudfront.net", "https://d2bbsr7w8asxtx.cloudfront.net", "https://main.d346k14opurixl.amplifyapp.com", "https://nookstudio.online"],
                     allowed_headers=["*"],
                     max_age=3000
                 )

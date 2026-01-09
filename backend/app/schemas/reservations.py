@@ -17,6 +17,7 @@ class ReservationPublic(ReservationBase):
     id: UUID
     user_sub: str
     status: str
+    cancellation_reason: Optional[str] = None
     created_at: datetime
     cafe_name: Optional[str] = None  # For display
     user_name: Optional[str] = None  # For display
@@ -27,6 +28,7 @@ class ReservationPublic(ReservationBase):
 
 class ReservationUpdate(BaseModel):
     status: Optional[str] = None
+    cancellation_reason: Optional[str] = None
     reservation_date: Optional[datetime] = None
     reservation_time: Optional[str] = None
     party_size: Optional[int] = Field(None, ge=1, le=20)
