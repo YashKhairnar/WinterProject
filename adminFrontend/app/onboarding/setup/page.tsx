@@ -110,7 +110,8 @@ export default function OnboardingSetupPage() {
                 (error) => {
                     console.error("Error fetching location:", error);
                     alert("Could not fetch location. Please allow location access.");
-                }
+                },
+                { enableHighAccuracy: true }
             );
         } else {
             alert("Geolocation is not supported by your browser.");
@@ -155,6 +156,10 @@ export default function OnboardingSetupPage() {
         }
         if (!formData.cognito_sub) {
             alert("No cognito_sub (userId) found. Please re-login.");
+            return;
+        }
+        if (!formData.latitude || !formData.longitude) {
+            alert("Please fetch the location coordinates before submitting.");
             return;
         }
 

@@ -185,7 +185,7 @@ function EditableCoverPhoto({
             try {
                 const formData = new FormData();
                 formData.append('file', file);
-                const res = await fetch(`${cleanAPIURL}/cafes/upload`, { method: 'POST', body: formData });
+                const res = await fetch(uploadEndpoint, { method: 'POST', body: formData });
                 if (res.ok) {
                     const data = await res.json();
                     if (data.url) {
@@ -198,7 +198,7 @@ function EditableCoverPhoto({
     };
 
     return (
-        <div className="relative group w-full h-[300px] bg-gray-100 relative">
+        <div className="relative group w-full h-full bg-muted/30">
             {value ? (
                 <>
                     <img src={value} alt="Cover" className="w-full h-full object-cover" />
@@ -249,7 +249,7 @@ function EditableGallery({
             try {
                 const formData = new FormData();
                 formData.append('file', file);
-                const res = await fetch(`${cleanAPIURL}/cafes/upload`, { method: 'POST', body: formData });
+                const res = await fetch(uploadEndpoint, { method: 'POST', body: formData });
                 if (res.ok) {
                     const data = await res.json();
                     if (data.url) {
@@ -469,11 +469,11 @@ export default function CafeProfilePage() {
                                 <EditableCoverPhoto
                                     value={cafe.cover_photo}
                                     onSave={(val) => handleUpdate('cover_photo', val)}
-                                    uploadEndpoint={`${API_URL}/cafes/upload`}
+                                    uploadEndpoint={`${cleanAPIURL}/cafes/upload?category=cover_photo`}
                                 />
                             </div>
 
-                            <div className="p-4 md:p-8">
+                            <div className="p-6 md:p-8">
                                 <div className="flex justify-between items-start mb-8">
                                     <div className="flex-1">
                                         <EditableText
@@ -520,7 +520,7 @@ export default function CafeProfilePage() {
                                             <EditableGallery
                                                 photos={cafe.cafe_photos || []}
                                                 onSave={(val) => handleUpdate('cafe_photos', val)}
-                                                uploadEndpoint={`${API_URL}/cafes/upload`}
+                                                uploadEndpoint={`${cleanAPIURL}/cafes/upload?category=cafe_photo`}
                                             />
                                         </section>
 
@@ -529,7 +529,7 @@ export default function CafeProfilePage() {
                                             <EditableGallery
                                                 photos={cafe.menu_photos || []}
                                                 onSave={(val) => handleUpdate('menu_photos', val)}
-                                                uploadEndpoint={`${API_URL}/cafes/upload`}
+                                                uploadEndpoint={`${cleanAPIURL}/cafes/upload?category=menu_photo`}
                                             />
                                         </section>
 
