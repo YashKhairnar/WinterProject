@@ -82,6 +82,8 @@ def update_reservation(reservation_id: UUID, payload: ReservationUpdate, db: Ses
     # Update fields
     if payload.status is not None:
         reservation.status = payload.status
+    if payload.cancellation_reason is not None:
+        reservation.cancellation_reason = payload.cancellation_reason
     if payload.reservation_date is not None:
         reservation.reservation_date = payload.reservation_date
     if payload.reservation_time is not None:

@@ -145,7 +145,8 @@ export default function CafeProfile() {
                 cafe.longitude
             );
             // Allow check-in within 500km
-            setIsNearCafe(dist <= 500);
+            const d = dist == 0 ? Infinity : dist;
+            setIsNearCafe(d <= 0.5);
         }
     }, [userLocation, cafe]);
 
@@ -545,9 +546,11 @@ export default function CafeProfile() {
 
     const handleShare = async () => {
         if (!cafe) return;
+
         try {
             await Share.share({
-                message: `Check out ${cafe.name}! It's a great spot for coffee. \nAddress: ${cafe.address}, ${cafe.city}`,
+                message: `☕ Found this great spot called ${cafe.name} on Nook! ✨\n\n⭐ Rating: ${cafe.avg_rating || 'N/A'}/5\n📍 ${cafe.address}, ${cafe.city}\n\nCheck it out: https://nookstudio.online`,
+                title: `Check out ${cafe.name}`
             });
         } catch (error: any) {
             Alert.alert(error.message);
@@ -1102,14 +1105,16 @@ export default function CafeProfile() {
 
                         {selectedStory && (
                             <View style={styles.storyContent}>
-                                <Image
-                                    source={{ uri: getImageUrl(selectedStory.image_url) || selectedStory.image_url }}
-                                    style={styles.fullStoryImage}
-                                    contentFit="contain"
-                                    cachePolicy="memory-disk"
-                                    priority="high"
-                                    recyclingKey={selectedStory.id}
-                                />
+                                <Pressable style={{ flex: 1 }} onPress={() => setSelectedStory(null)}>
+                                    <Image
+                                        source={{ uri: getImageUrl(selectedStory.image_url) || selectedStory.image_url }}
+                                        style={styles.fullStoryImage}
+                                        contentFit="contain"
+                                        cachePolicy="memory-disk"
+                                        priority="high"
+                                        recyclingKey={selectedStory.id}
+                                    />
+                                </Pressable>
 
                                 <View style={[styles.storyHeader, { top: insets.top + 40 }]}>
                                     <View style={styles.storyInfoRow}>
@@ -1405,8 +1410,13 @@ export default function CafeProfile() {
                     <View style={styles.reservationBanner}>
                         <Feather name="calendar" size={14} color={Colors.accent} />
                         <Text style={styles.reservationBannerText}>
-                            {getReservation(cafeId)?.status === 'pending' ? 'Pending ' : 'Confirmed'}
+                            {getReservation(cafeId)?.status === 'pending' ? 'Pending' : getReservation(cafeId)?.status === 'cancelled' ? 'Cancelled' : 'Confirmed'}
                             : Reserved for {getReservation(cafeId)?.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at {getReservation(cafeId)?.time} for {getReservation(cafeId)?.partySize} people
+                            {getReservation(cafeId)?.status === 'cancelled' && getReservation(cafeId)?.cancellation_reason && (
+                                <Text style={styles.cancellationReasonText}>
+                                    {'\n'}Reason: {getReservation(cafeId)?.cancellation_reason}
+                                </Text>
+                            )}
                         </Text>
                     </View>
                 )}
@@ -1432,31 +1442,33 @@ export default function CafeProfile() {
                         </Text>
                     </Pressable>
 
-                    <Pressable
-                        style={[
-                            styles.footerBtn,
-                            styles.checkInBtn,
-                            (isCheckedIn(cafeId) || checkInLoading) && styles.checkInBtnActive,
-                            checkInLoading && { opacity: 0.7 }
-                        ]}
-                        onPress={() => !isCheckedIn(cafeId) && router.push(`/cafe/${cafeId}/checkin`)}
-                        disabled={isCheckedIn(cafeId) || checkInLoading || (!canCheckIn && !isCheckedIn(cafeId))}
-                    >
-                        {checkInLoading ? (
-                            <ActivityIndicator size="small" color={Colors.primary} />
-                        ) : (
-                            <>
-                                <MaterialIcons
-                                    name={isCheckedIn(cafeId) ? "stars" : "location-on"}
-                                    size={20}
-                                    color={isCheckedIn(cafeId) ? Colors.white : Colors.textPrimary}
-                                />
-                                <Text style={[styles.footerBtnText, !isCheckedIn(cafeId) && { color: Colors.textPrimary }]}>
-                                    {isCheckedIn(cafeId) ? "Checked In" : "Check In"}
-                                </Text>
-                            </>
-                        )}
-                    </Pressable>
+                    {(canCheckIn || isCheckedIn(cafeId)) && (
+                        <Pressable
+                            style={[
+                                styles.footerBtn,
+                                styles.checkInBtn,
+                                (isCheckedIn(cafeId) || checkInLoading) && styles.checkInBtnActive,
+                                checkInLoading && { opacity: 0.7 }
+                            ]}
+                            onPress={() => !isCheckedIn(cafeId) && router.push(`/cafe/${cafeId}/checkin`)}
+                            disabled={isCheckedIn(cafeId) || checkInLoading}
+                        >
+                            {checkInLoading ? (
+                                <ActivityIndicator size="small" color={Colors.primary} />
+                            ) : (
+                                <>
+                                    <MaterialIcons
+                                        name={isCheckedIn(cafeId) ? "stars" : "location-on"}
+                                        size={20}
+                                        color={isCheckedIn(cafeId) ? Colors.white : Colors.textPrimary}
+                                    />
+                                    <Text style={[styles.footerBtnText, !isCheckedIn(cafeId) && { color: Colors.textPrimary }]}>
+                                        {isCheckedIn(cafeId) ? "Checked In" : "Check In"}
+                                    </Text>
+                                </>
+                            )}
+                        </Pressable>
+                    )}
                 </View>
             </View>
         </View >
@@ -2237,6 +2249,12 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '700',
         color: Colors.accent,
+    },
+    cancellationReasonText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: Colors.error,
+        fontStyle: 'italic',
     },
     footerBtn: {
         flex: 1,

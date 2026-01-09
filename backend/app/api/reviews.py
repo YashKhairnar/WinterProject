@@ -34,7 +34,17 @@ def create_review(payload: ReviewCreate, db: Session = Depends(get_db)):
     if not checkin:
         raise HTTPException(status_code=403, detail="Check-in required to leave a review")
 
-    # 4. Create review
+    # 4. Check if user already reviewed this cafe today (one review per day limit)
+    existing_review = db.query(Review).filter(
+        Review.user_sub == payload.user_sub,
+        Review.cafe_id == payload.cafe_id,
+        Review.created_at >= start_of_day
+    ).first()
+    
+    if existing_review:
+        raise HTTPException(status_code=400, detail="You have already submitted a review for this cafe today")
+
+    # 5. Create review
     new_review = Review(
         cafe_id=payload.cafe_id,
         user_sub=payload.user_sub,

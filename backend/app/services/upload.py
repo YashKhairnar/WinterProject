@@ -46,11 +46,9 @@ def save_to_s3(file_content: bytes, filename: str, category: str) -> str:
         )
         
         # Return public URL
-        # Note: some regions might return None for LocationConstraint (us-east-1)
-        region_resp = s3.get_bucket_location(Bucket=bucket_name)
-        region = region_resp.get('LocationConstraint')
-        if region is None:
-            region = 'us-east-1'
+        # Return public URL
+        # Use AWS_REGION env var if available (Lambda), else default to us-east-1
+        region = os.environ.get('AWS_REGION', 'us-east-1')
         
         url = f"https://{bucket_name}.s3.{region}.amazonaws.com/{key}"
         return url

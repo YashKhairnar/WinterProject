@@ -13,6 +13,7 @@ export type ReservationDetails = {
     partySize: number;
     specialRequest?: string;
     status?: string;
+    cancellation_reason?: string;
 };
 
 type ReservationContextType = {
@@ -72,6 +73,7 @@ export function ReservationProvider({ children }: { children: ReactNode }) {
                     partySize: r.party_size,
                     specialRequest: r.special_request,
                     status: r.status,
+                    cancellation_reason: r.cancellation_reason,
                 }));
                 setReservations(mapped);
             }

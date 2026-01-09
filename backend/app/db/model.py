@@ -15,7 +15,7 @@ from sqlalchemy import (
     Table,
     ForeignKey
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.db.base import Base
 
@@ -140,7 +140,8 @@ class Review(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User", backref="reviews")
-    cafe = relationship("Cafe", backref="reviews")
+    cafe = relationship("Cafe", backref=backref("reviews", cascade="all, delete-orphan"))
+
 # --------------------------- CHECKIN MODEL ---------------------------
 class Checkin(Base):
     __tablename__ = "checkins"
@@ -151,7 +152,7 @@ class Checkin(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     user = relationship("User", backref="checkins")
-    cafe = relationship("Cafe", backref="checkins")
+    cafe = relationship("Cafe", backref=backref("checkins", cascade="all, delete-orphan"))
 
 # --------------------------- OCCUPANCY HISTORY MODEL ---------------------------
 class OccupancyHistory(Base):
@@ -168,7 +169,7 @@ class OccupancyHistory(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    cafe = relationship("Cafe", backref="occupancy_history")
+    cafe = relationship("Cafe", backref=backref("occupancy_history", cascade="all, delete-orphan"))
 
 # --------------------------- RESERVATION MODEL ---------------------------
 class Reservation(Base):
@@ -184,9 +185,10 @@ class Reservation(Base):
     special_request = Column(Text)
     
     status = Column(String, nullable=False, default="pending")  # pending, confirmed, cancelled, completed
+    cancellation_reason = Column(Text, nullable=True)  # Reason provided by admin when cancelling
     
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User", backref="reservations")
-    cafe = relationship("Cafe", backref="reservations")
+    cafe = relationship("Cafe", backref=backref("reservations", cascade="all, delete-orphan"))

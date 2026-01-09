@@ -10,6 +10,7 @@ import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSavedCafes } from "../context/SavedCafesContext";
+import { useReservation } from "../context/ReservationContext";
 import { signOut, fetchUserAttributes } from 'aws-amplify/auth';
 import { getImageUrl } from "../utils/image";
 import { Colors, Shadows, Typography } from "../constants/theme";
@@ -22,6 +23,7 @@ export default function Profile() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { savedCafes, toggleSaved } = useSavedCafes();
+    const { reservations } = useReservation();
     const savedCafesList = savedCafes;
 
     interface User {
@@ -306,6 +308,8 @@ export default function Profile() {
         amenities: ['WiFi', 'Power Outlets', 'Parking', 'Outdoor Seating', 'Pet Friendly']
     };
 
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
     return (
         <View style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
@@ -318,7 +322,6 @@ export default function Profile() {
                 </Pressable>
                 <Text style={styles.headerTitle}>My Profile</Text>
                 <Pressable style={styles.backBtn}>
-                    <Feather name="settings" size={24} color={Colors.primary} />
                 </Pressable>
             </View>
 
@@ -415,12 +418,14 @@ export default function Profile() {
                 <View style={styles.section}>
                     <View style={styles.rowBetween}>
                         <Text style={styles.sectionTitle}>Saved Cafes</Text>
-                        <Text style={styles.seeAll}>See All</Text>
+                        <Pressable onPress={() => router.push('/saved-cafes' as any)}>
+                            <Text style={styles.seeAll}>See All</Text>
+                        </Pressable>
                     </View>
                     {savedCafesList.length === 0 ? (
                         <Text style={styles.emptyText}>No saved cafes yet.</Text>
                     ) : (
-                        savedCafesList.map((cafe) => (
+                        savedCafesList.slice(0, 1).map((cafe) => (
                             <Pressable
                                 key={cafe.id}
                                 style={styles.cafeRow}
@@ -442,6 +447,53 @@ export default function Profile() {
                     )}
                 </View>
 
+                {/* Reservation History */}
+                <View style={styles.section}>
+                    <View style={styles.rowBetween}>
+                        <Text style={styles.sectionTitle}>Reservation History</Text>
+                        <Pressable onPress={() => router.push('/reservations' as any)}>
+                            <Text style={styles.seeAll}>See All</Text>
+                        </Pressable>
+                    </View>
+                    {reservations.filter(r => r.status === 'completed' || r.status === 'cancelled').length === 0 ? (
+                        <Text style={styles.emptyText}>No past reservations.</Text>
+                    ) : (
+                        reservations
+                            .filter(r => r.status === 'completed' || r.status === 'cancelled')
+                            .slice(0, 1)
+                            .map((reservation) => (
+                                <Pressable
+                                    key={reservation.id}
+                                    style={styles.reservationRow}
+                                    onPress={() => router.push(`/cafe/${reservation.cafeId}` as any)}
+                                >
+                                    <View style={styles.reservationDetails}>
+                                        <Text style={styles.cafeTitle}>{reservation.cafeName || 'Cafe'}</Text>
+                                        <Text style={styles.cafeSubtitle}>
+                                            {reservation.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {reservation.time} • {reservation.partySize} people
+                                        </Text>
+                                        {reservation.status === 'cancelled' && reservation.cancellation_reason && (
+                                            <Text style={styles.cancellationReason}>
+                                                Reason: {reservation.cancellation_reason}
+                                            </Text>
+                                        )}
+                                    </View>
+                                    <View style={[
+                                        styles.statusBadge,
+                                        reservation.status === 'completed' ? styles.completedBadge : styles.cancelledBadge
+                                    ]}>
+                                        <Text style={[
+                                            styles.statusText,
+                                            reservation.status === 'completed' ? styles.completedText : styles.cancelledText
+                                        ]}>
+                                            {reservation.status === 'completed' ? 'Completed' : 'Cancelled'}
+                                        </Text>
+                                    </View>
+                                </Pressable>
+                            ))
+                    )}
+                </View>
+
                 {/* Logout Button */}
                 <Pressable style={styles.logoutBtn} onPress={async () => {
                     try {
@@ -459,8 +511,16 @@ export default function Profile() {
                     style={styles.deleteAccountBtn}
                     onPress={() => setDeleteModalVisible(true)}
                 >
-                    <AntDesign name="delete" size={20} color={Colors.textSecondary} />
-                    <Text style={styles.deleteAccountText}>Delete Account Permanently</Text>
+                    <Feather name="trash-2" size={18} color={Colors.textSecondary} />
+                    <Text style={styles.deleteAccountText}>Delete Account</Text>
+                </Pressable>
+
+                <Pressable
+                    style={[styles.deleteAccountBtn, { marginTop: 0, marginBottom: 60 }]}
+                    onPress={() => router.push("/privacy")}
+                >
+                    <Feather name="shield" size={18} color={Colors.textSecondary} />
+                    <Text style={styles.deleteAccountText}>Privacy Policy</Text>
                 </Pressable>
 
             </ScrollView>
@@ -1075,9 +1135,51 @@ const styles = StyleSheet.create({
     loaderSmall: {
         width: 20,
         height: 20,
-        borderWidth: 2,
-        borderColor: Colors.white + '30',
-        borderTopColor: Colors.white,
         borderRadius: 10,
-    }
+        borderWidth: 2,
+        borderColor: Colors.white,
+        borderTopColor: 'transparent',
+    },
+    reservationRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 16,
+        paddingHorizontal: 16,
+        backgroundColor: Colors.card,
+        borderRadius: 12,
+        marginBottom: 12,
+        ...Shadows.small,
+    },
+    reservationDetails: {
+        flex: 1,
+    },
+    cancellationReason: {
+        fontSize: 12,
+        color: Colors.error,
+        fontStyle: 'italic',
+        marginTop: 4,
+    },
+    statusBadge: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 12,
+        marginLeft: 8,
+    },
+    completedBadge: {
+        backgroundColor: Colors.accent + '15',
+    },
+    cancelledBadge: {
+        backgroundColor: Colors.error + '15',
+    },
+    statusText: {
+        fontSize: 11,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+    },
+    completedText: {
+        color: Colors.accent,
+    },
+    cancelledText: {
+        color: Colors.error,
+    },
 });
