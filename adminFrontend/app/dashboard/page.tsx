@@ -17,6 +17,10 @@ export default function DashboardPage() {
     const [reservations, setReservations] = useState<any[]>([]);
     const [loadingReservations, setLoadingReservations] = useState(false);
     const [activeTab, setActiveTab] = useState<'map' | 'reservations'>('map');
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [cancellingResId, setCancellingResId] = useState<string | null>(null);
+    const [cancelReason, setCancelReason] = useState("");
+    const [submittingCancel, setSubmittingCancel] = useState(false);
     const apiURL = process.env.NEXT_PUBLIC_API_URL;
 
     // URL normalization
@@ -140,21 +144,43 @@ export default function DashboardPage() {
     };
 
     // Update reservation status
-    const updateReservationStatus = async (reservationId: string, status: string) => {
+    const updateReservationStatus = async (reservationId: string, status: string, reason?: string) => {
         if (!cleanAPIURL) return;
 
+        // Prompt for cancellation reason if status is 'cancelled' and no reason provided
+        if (status === 'cancelled' && !reason) {
+            setCancellingResId(reservationId);
+            setCancelReason("");
+            setShowCancelModal(true);
+            return;
+        }
+
+        if (status === 'cancelled') setSubmittingCancel(true);
+
         try {
+            const body: any = { status };
+            if (reason) {
+                body.cancellation_reason = reason;
+            }
+
             const response = await fetch(`${cleanAPIURL}/reservations/${reservationId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status })
+                body: JSON.stringify(body)
             });
 
             if (response.ok) {
                 await fetchReservations();
+                if (status === 'cancelled') {
+                    setShowCancelModal(false);
+                    setCancellingResId(null);
+                    setCancelReason("");
+                }
             }
         } catch (error) {
             console.error("DEBUG: Error updating reservation:", error);
+        } finally {
+            if (status === 'cancelled') setSubmittingCancel(false);
         }
     };
 
@@ -353,7 +379,7 @@ export default function DashboardPage() {
                                         Seating Manager
                                     </h1>
                                     <p className="text-sm text-muted-foreground">
-                                        Live view of your floor plan.
+                                        Live view of your tables.
                                     </p>
                                 </div>
                                 <div className="flex w-full sm:w-auto items-center justify-between sm:justify-end gap-4">
@@ -516,16 +542,14 @@ export default function DashboardPage() {
                                         <>
                                             <div className="flex justify-between items-center mb-6">
                                                 <div className="flex items-center gap-4 text-sm">
-                                                    <span className="font-semibold text-foreground">Main Floor</span>
-                                                    <span className="text-muted-foreground/30">|</span>
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-muted-foreground">{tables.filter(t => t.seats === 0).length} Available</span>
                                                     </div>
+                                                    <span className="text-muted-foreground/30">|</span>
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-muted-foreground">{tables.filter(t => t.seats > 0).length} In Use</span>
                                                     </div>
                                                 </div>
-                                                <div className="text-xs font-mono text-muted-foreground/40 opacity-50">v2.2</div>
                                             </div>
 
                                             <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3 sm:gap-4 content-start">
@@ -577,10 +601,6 @@ export default function DashboardPage() {
                                                     );
                                                 })}
                                             </div>
-
-                                            <div className="mt-auto border-t-2 border-dashed border-border pt-4 text-center">
-                                                <span className="text-xs font-bold text-muted-foreground/70 tracking-widest uppercase">Entrance</span>
-                                            </div>
                                         </>
                                     )}
                                 </div>
@@ -621,14 +641,93 @@ export default function DashboardPage() {
                                         <p className="text-muted-foreground max-w-sm">When customers book tables, they will appear here for you to manage.</p>
                                     </div>
                                 ) : (
-                                    <div className="overflow-x-auto overflow-y-visible">
-                                        <table className="w-full text-left border-separate border-spacing-y-2">
+                                    <div className="overflow-y-visible">
+                                        {/* Mobile Card View */}
+                                        <div className="grid grid-cols-1 gap-4 md:hidden">
+                                            {reservations.map((res) => (
+                                                <div key={res.id} className="bg-muted/30 rounded-2xl p-5 border border-border/50 space-y-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+                                                                {(res.user_name || "C").substring(0, 1).toUpperCase()}
+                                                                {(res.user_name || res.user_sub).substring(1, 2).toUpperCase()}
+                                                            </div>
+                                                            <div>
+                                                                <div className="font-bold text-foreground text-sm">{res.user_name || "Customer"}</div>
+                                                                <div className="text-[10px] text-muted-foreground font-mono truncate w-20">{res.user_sub}</div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-col items-end gap-1">
+                                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border-2 ${res.status === 'confirmed' ? 'bg-green-500/10 border-green-500/20 text-green-600' :
+                                                                res.status === 'cancelled' ? 'bg-red-500/10 border-red-500/20 text-red-600' :
+                                                                    res.status === 'completed' ? 'bg-blue-500/10 border-blue-500/20 text-blue-600' :
+                                                                        'bg-yellow-500/10 border-yellow-500/20 text-yellow-600'
+                                                                }`}>
+                                                                {res.status}
+                                                            </span>
+                                                            {res.status === 'cancelled' && res.cancellation_reason && (
+                                                                <span className="text-[10px] text-destructive font-medium italic text-right mt-1">
+                                                                    "{res.cancellation_reason}"
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex justify-between items-end border-t border-border/20 pt-4">
+                                                        <div className="space-y-3">
+                                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                                <span className="font-bold text-foreground">{res.party_size} Guests</span>
+                                                            </div>
+                                                            <div className="flex flex-col gap-0.5">
+                                                                <span className="font-bold text-foreground text-sm">
+                                                                    {new Date(res.reservation_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} @ {res.reservation_time}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex gap-2">
+                                                            {res.status === 'pending' && (
+                                                                <>
+                                                                    <button
+                                                                        onClick={() => updateReservationStatus(res.id, 'confirmed')}
+                                                                        className="p-3 rounded-xl text-white bg-primary shadow-lg shadow-primary/20 active:scale-95 transition-all"
+                                                                    >
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                                            <polyline points="20 6 9 17 4 12"></polyline>
+                                                                        </svg>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => updateReservationStatus(res.id, 'cancelled')}
+                                                                        className="p-3 rounded-xl text-destructive bg-destructive/10 border border-destructive/30 shadow-lg shadow-destructive/10 active:scale-95 transition-all"
+                                                                    >
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                                        </svg>
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                            {res.status === 'confirmed' && (
+                                                                <button
+                                                                    onClick={() => updateReservationStatus(res.id, 'completed')}
+                                                                    className="px-5 py-2.5 rounded-xl text-xs font-black uppercase text-white bg-accent hover:bg-accent/90 shadow-lg shadow-accent/20 active:scale-95 transition-all"
+                                                                >
+                                                                    Complete
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Desktop Table View */}
+                                        <table className="hidden md:table w-full text-left border-separate border-spacing-y-2">
                                             <thead>
                                                 <tr className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                                                     <th className="px-4 pb-4">Customer Details</th>
                                                     <th className="px-4 pb-4">Party Size</th>
                                                     <th className="px-4 pb-4">Date & Time</th>
-                                                    <th className="px-4 pb-4">Special Requests</th>
                                                     <th className="px-4 pb-4">Status</th>
                                                     <th className="px-4 pb-4 text-right">Actions</th>
                                                 </tr>
@@ -665,47 +764,54 @@ export default function DashboardPage() {
                                                                 <span className="text-sm font-medium text-primary">{res.reservation_time}</span>
                                                             </div>
                                                         </td>
-                                                        <td className="px-4 py-4 bg-muted/30 max-w-xs">
-                                                            <p className="text-sm text-muted-foreground line-clamp-2 italic">
-                                                                {res.special_request || "No special requests."}
-                                                            </p>
-                                                        </td>
                                                         <td className="px-4 py-4 bg-muted/30">
-                                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border-2 ${res.status === 'confirmed' ? 'bg-green-500/10 border-green-500/20 text-green-600' :
-                                                                res.status === 'cancelled' ? 'bg-red-500/10 border-red-500/20 text-red-600' :
-                                                                    res.status === 'completed' ? 'bg-blue-500/10 border-blue-500/20 text-blue-600' :
-                                                                        'bg-yellow-500/10 border-yellow-500/20 text-yellow-600'
-                                                                }`}>
-                                                                <div className={`w-1.5 h-1.5 rounded-full ${res.status === 'confirmed' ? 'bg-green-500' :
-                                                                    res.status === 'cancelled' ? 'bg-red-500' :
-                                                                        res.status === 'completed' ? 'bg-blue-500' :
-                                                                            'bg-yellow-500'
-                                                                    }`} />
-                                                                {res.status}
-                                                            </span>
+                                                            <div className="flex flex-col gap-1">
+                                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border-2 ${res.status === 'confirmed' ? 'bg-green-500/10 border-green-500/20 text-green-600' :
+                                                                    res.status === 'cancelled' ? 'bg-red-500/10 border-red-500/20 text-red-600' :
+                                                                        res.status === 'completed' ? 'bg-blue-500/10 border-blue-500/20 text-blue-600' :
+                                                                            'bg-yellow-500/10 border-yellow-500/20 text-yellow-600'
+                                                                    }`}>
+                                                                    <div className={`w-1.5 h-1.5 rounded-full ${res.status === 'confirmed' ? 'bg-green-500' :
+                                                                        res.status === 'cancelled' ? 'bg-red-500' :
+                                                                            res.status === 'completed' ? 'bg-blue-500' :
+                                                                                'bg-yellow-500'
+                                                                        }`} />
+                                                                    {res.status}
+                                                                </span>
+                                                                {res.status === 'cancelled' && res.cancellation_reason && (
+                                                                    <span className="text-[10px] text-destructive font-medium italic px-1 mt-1 leading-tight">
+                                                                        "{res.cancellation_reason}"
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </td>
                                                         <td className="px-4 py-4 bg-muted/30 rounded-r-xl text-right">
-                                                            <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <div className="flex gap-2 justify-end transition-opacity">
                                                                 {res.status === 'pending' && (
                                                                     <>
                                                                         <button
                                                                             onClick={() => updateReservationStatus(res.id, 'confirmed')}
-                                                                            className="px-4 py-2 rounded-lg text-xs font-black uppercase text-white bg-green-500 hover:bg-green-600 shadow-md shadow-green-500/20 active:scale-95 transition-all"
+                                                                            className="px-4 py-2 rounded-lg text-xs font-black uppercase text-white bg-primary bg-primary/90 shadow-md shadow-primary/20 active:scale-95 transition-all flex items-center gap-2"
                                                                         >
-                                                                            Confirm
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                                                            </svg>
                                                                         </button>
                                                                         <button
                                                                             onClick={() => updateReservationStatus(res.id, 'cancelled')}
-                                                                            className="px-4 py-2 rounded-lg text-xs font-black uppercase text-white bg-red-500 hover:bg-red-600 shadow-md shadow-red-500/20 active:scale-95 transition-all"
+                                                                            className="px-4 py-2 rounded-lg text-xs font-black uppercase text-destructive bg-destructive/10 hover:bg-destructive/20 border border-destructive/30 shadow-md shadow-destructive/10 active:scale-95 transition-all flex items-center gap-2"
                                                                         >
-                                                                            Decline
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                                            </svg>
                                                                         </button>
                                                                     </>
                                                                 )}
                                                                 {res.status === 'confirmed' && (
                                                                     <button
                                                                         onClick={() => updateReservationStatus(res.id, 'completed')}
-                                                                        className="px-4 py-2 rounded-lg text-xs font-black uppercase text-white bg-blue-500 hover:bg-blue-600 shadow-md shadow-blue-500/20 active:scale-95 transition-all"
+                                                                        className="px-4 py-2 rounded-lg text-xs font-black uppercase text-white bg-accent hover:bg-accent/90 shadow-md shadow-accent/20 active:scale-95 transition-all"
                                                                     >
                                                                         Complete
                                                                     </button>
@@ -761,6 +867,52 @@ export default function DashboardPage() {
                     </div>
                 );
             })()}
+            {/* Cancellation Reason Modal */}
+            {showCancelModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary/20 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+                    <div className="bg-card rounded-2xl shadow-xl w-full max-w-sm p-6 scale-100 animate-in zoom-in-95 duration-200">
+                        <div className="w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center mb-4 mx-auto text-destructive">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </div>
+                        <h3 className="text-xl font-bold text-foreground mb-2 text-center">Cancel Reservation</h3>
+                        <p className="text-muted-foreground text-center mb-6">Please provide a reason for cancelling this booking.</p>
+
+                        <textarea
+                            value={cancelReason}
+                            onChange={(e) => setCancelReason(e.target.value)}
+                            placeholder="e.g. Table no longer available, Cafe closing early..."
+                            className="w-full bg-muted/50 border border-border rounded-xl p-4 text-sm min-h-[100px] focus:ring-2 focus:ring-primary/20 outline-none transition-all mb-6"
+                            autoFocus
+                        />
+
+                        <div className="flex flex-col gap-2">
+                            <button
+                                onClick={() => updateReservationStatus(cancellingResId!, 'cancelled', cancelReason)}
+                                disabled={submittingCancel || !cancelReason.trim()}
+                                className="w-full py-4 rounded-xl font-bold text-white bg-destructive shadow-lg shadow-destructive/20 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
+                            >
+                                {submittingCancel ? (
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : "Confirm Cancellation"}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowCancelModal(false);
+                                    setCancellingResId(null);
+                                    setCancelReason("");
+                                }}
+                                disabled={submittingCancel}
+                                className="w-full py-3 rounded-xl border border-border text-muted-foreground font-semibold hover:bg-muted/50 transition-colors"
+                            >
+                                Nevermind, Keep It
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
