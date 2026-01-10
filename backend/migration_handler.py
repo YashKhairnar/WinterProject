@@ -41,11 +41,25 @@ def handler(event, context):
         print(f"Connected to {DB_NAME} at {DB_HOST}")
 
         # SQL Migration: Add cancellation_reason column to reservations table
-        sql = "ALTER TABLE reservations ADD COLUMN IF NOT EXISTS cancellation_reason TEXT;"
-        
-        print(f"Executing: {sql}")
-        cur.execute(sql)
+        sql1 = "ALTER TABLE reservations ADD COLUMN IF NOT EXISTS cancellation_reason TEXT;"
+        print(f"Executing: {sql1}")
+        cur.execute(sql1)
         print("Successfully added cancellation_reason column to reservations table.")
+
+        # SQL Migration: Migrate liveUpdates table (user_id -> user_sub)
+        # Check if user_id exists before renaming
+        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name='liveUpdates' AND column_name='user_id';")
+        if cur.fetchone():
+            sql2 = 'ALTER TABLE "liveUpdates" RENAME COLUMN user_id TO user_sub;'
+            print(f"Executing: {sql2}")
+            cur.execute(sql2)
+            
+            sql3 = 'ALTER TABLE "liveUpdates" ALTER COLUMN user_sub TYPE TEXT USING user_sub::text;'
+            print(f"Executing: {sql3}")
+            cur.execute(sql3)
+            print("Successfully migrated liveUpdates table.")
+        else:
+            print("liveUpdates table already migrated or user_id column missing.")
 
         cur.close()
         conn.close()

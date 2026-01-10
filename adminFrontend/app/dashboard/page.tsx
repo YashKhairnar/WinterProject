@@ -658,7 +658,7 @@ export default function DashboardPage() {
                                                             </div>
                                                         </div>
                                                         <div className="flex flex-col items-end gap-1">
-                                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border-2 ${res.status === 'confirmed' ? 'bg-green-500/10 border-green-500/20 text-green-600' :
+                                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${res.status === 'confirmed' ? 'bg-green-500/10 border-green-500/20 text-green-600' :
                                                                 res.status === 'cancelled' ? 'bg-red-500/10 border-red-500/20 text-red-600' :
                                                                     res.status === 'completed' ? 'bg-blue-500/10 border-blue-500/20 text-blue-600' :
                                                                         'bg-yellow-500/10 border-yellow-500/20 text-yellow-600'
@@ -765,8 +765,8 @@ export default function DashboardPage() {
                                                             </div>
                                                         </td>
                                                         <td className="px-4 py-4 bg-muted/30">
-                                                            <div className="flex flex-col gap-1">
-                                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border-2 ${res.status === 'confirmed' ? 'bg-green-500/10 border-green-500/20 text-green-600' :
+                                                            <div className="flex flex-col gap-1 items-start">
+                                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold uppercase border ${res.status === 'confirmed' ? 'bg-green-500/10 border-green-500/20 text-green-600' :
                                                                     res.status === 'cancelled' ? 'bg-red-500/10 border-red-500/20 text-red-600' :
                                                                         res.status === 'completed' ? 'bg-blue-500/10 border-blue-500/20 text-blue-600' :
                                                                             'bg-yellow-500/10 border-yellow-500/20 text-yellow-600'

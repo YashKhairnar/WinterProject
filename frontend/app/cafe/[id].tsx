@@ -1207,22 +1207,53 @@ export default function CafeProfile() {
                                             setUploading(true);
                                             try {
                                                 const user = await import('aws-amplify/auth').then(m => m.fetchUserAttributes());
+                                                const apiUrl = process.env.EXPO_PUBLIC_API_URL || '';
+                                                const cleanURL = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
 
-                                                const formData = new FormData();
-                                                formData.append('cafe_id', cafeId);
-                                                formData.append('user_id', user.sub || '');
-
+                                                // 1. Get Pre-signed URL
                                                 const filename = capturedPhoto.split('/').pop() || 'photo.jpg';
-                                                formData.append('photo', {
-                                                    uri: capturedPhoto,
-                                                    type: 'image/jpeg',
-                                                    name: filename,
-                                                } as any);
-
-                                                const API_URL = process.env.EXPO_PUBLIC_API_URL;
-                                                const response = await fetch(`${API_URL}/liveUpdates`, {
+                                                const presignedResponse = await fetch(`${cleanURL}/upload/presigned-url`, {
                                                     method: 'POST',
-                                                    body: formData,
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        filename,
+                                                        file_type: 'image/jpeg',
+                                                        category: 'live_update'
+                                                    })
+                                                });
+
+                                                if (!presignedResponse.ok) {
+                                                    const error = await presignedResponse.text();
+                                                    throw new Error(`Failed to get upload URL: ${error}`);
+                                                }
+
+                                                const { upload_url, file_url } = await presignedResponse.json();
+
+                                                // 2. Upload to S3
+                                                const photoData = await fetch(capturedPhoto);
+                                                const blob = await photoData.blob();
+
+                                                const s3Response = await fetch(upload_url, {
+                                                    method: 'PUT',
+                                                    body: blob,
+                                                    headers: { 'Content-Type': 'image/jpeg' }
+                                                });
+
+                                                if (!s3Response.ok) {
+                                                    throw new Error('Failed to upload image to S3');
+                                                }
+
+                                                // 3. Submit metadata to Backend
+                                                const payload = {
+                                                    cafe_id: cafeId,
+                                                    user_sub: user.sub || '',
+                                                    image_url: file_url
+                                                };
+
+                                                const response = await fetch(`${cleanURL}/liveUpdates/direct`, {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify(payload),
                                                 });
 
                                                 if (response.ok) {
@@ -1232,12 +1263,12 @@ export default function CafeProfile() {
                                                     // Refresh stories
                                                     fetchLiveUpdates();
                                                 } else {
-                                                    const error = await response.text();
-                                                    Alert.alert('Error', `Failed to upload: ${error}`);
+                                                    const errorData = await response.json();
+                                                    Alert.alert('Error', errorData.detail || "Failed to save story");
                                                 }
-                                            } catch (error) {
+                                            } catch (error: any) {
                                                 console.error('Upload error:', error);
-                                                Alert.alert('Error', 'Failed to upload story');
+                                                Alert.alert('Error', error.message || 'Failed to upload story');
                                             } finally {
                                                 setUploading(false);
                                             }

@@ -115,7 +115,7 @@ class LiveUpdates(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     cafe_id = Column(UUID(as_uuid=True), ForeignKey('cafes.id', ondelete='CASCADE'), nullable=False)
-    user_id = Column(UUID(as_uuid=True), nullable=False)
+    user_sub = Column(String, nullable=False)
 
     image_url = Column(Text, nullable=False)
     vibe = Column(String, nullable=True)
