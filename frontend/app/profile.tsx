@@ -455,7 +455,7 @@ export default function Profile() {
                             <Text style={styles.seeAll}>See All</Text>
                         </Pressable>
                     </View>
-                    {reservations.filter(r => r.status === 'completed' || r.status === 'cancelled').length === 0 ? (
+                    {reservations.filter(r => r.status === 'completed' || r.status === 'cancelled' || r.status === 'pending').length === 0 ? (
                         <Text style={styles.emptyText}>No past reservations.</Text>
                     ) : (
                         reservations
