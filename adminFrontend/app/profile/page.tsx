@@ -5,12 +5,19 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "../components/Sidebar";
 import MobileHeader from "../components/MobileHeader";
+import { Link as LinkIcon, Instagram, Phone, Utensils, Image as ImageIcon } from 'lucide-react';
 
 // --- Constants ---
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const cleanAPIURL = API_URL ? (API_URL.endsWith("/") ? API_URL.slice(0, -1) : API_URL) : "";
 
 // --- Components ---
+
+const cleanUrl = (url: string | undefined | null) => {
+    if (!url) return "";
+    // Remove all double quotes, single quotes, and backslashes from the URL string
+    return url.replace(/["'\\]/g, '').trim();
+};
 
 function EditableText({
     value,
@@ -176,32 +183,82 @@ function EditableCoverPhoto({
     uploadEndpoint
 }: { value: string | undefined | null, onSave: (val: string) => Promise<void>, uploadEndpoint: string }) {
     const [uploading, setUploading] = useState(false);
+    const [imgError, setImgError] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Reset error when value changes
+    useEffect(() => { setImgError(false); }, [value]);
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
             setUploading(true);
             try {
-                const formData = new FormData();
-                formData.append('file', file);
-                const res = await fetch(uploadEndpoint, { method: 'POST', body: formData });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.url) {
-                        await onSave(data.url);
+                // Extract category from uploadEndpoint
+                const categoryMatch = uploadEndpoint.match(/category=([^&]+)/);
+                const category = categoryMatch ? categoryMatch[1] : 'cafe_photo';
+
+                // Extract base API URL
+                const baseURL = uploadEndpoint.split('/cafes')[0];
+
+                // Step 1: Get presigned URL from backend
+                const presignedRes = await fetch(`${baseURL}/upload/presigned-url`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        filename: file.name,
+                        file_type: file.type,
+                        category: category
+                    })
+                });
+
+                if (!presignedRes.ok) {
+                    alert("Failed to get upload URL");
+                    return;
+                }
+
+                const { upload_url, file_url } = await presignedRes.json();
+
+                // Step 2: Upload directly to S3 using presigned URL
+                const uploadRes = await fetch(upload_url, {
+                    method: 'PUT',
+                    body: file,
+                    headers: {
+                        'Content-Type': file.type
                     }
-                } else alert("Upload failed");
-            } catch (err) { console.error(err); alert("Upload error"); }
-            finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ""; }
+                });
+
+                if (uploadRes.ok) {
+                    await onSave(file_url);
+                } else {
+                    alert("Upload failed");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Upload error");
+            } finally {
+                setUploading(false);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+            }
         }
     };
 
+    const displayUrl = cleanUrl(value);
+    const hasImage = !!displayUrl;
+
     return (
         <div className="relative group w-full h-full bg-muted/30">
-            {value ? (
+            {hasImage && !imgError ? (
                 <>
-                    <img src={value} alt="Cover" className="w-full h-full object-cover" />
+                    <img
+                        src={displayUrl}
+                        alt="Cover"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                            console.warn("Cover photo failed to load:", displayUrl);
+                            setImgError(true);
+                        }}
+                    />
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
                         <button
@@ -215,15 +272,16 @@ function EditableCoverPhoto({
                 </>
             ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground/60 gap-2">
-                    <span className="text-4xl">📷</span>
-                    <span>No cover photo set</span>
+                    <span className="text-4xl">{imgError ? "⚠️" : "📷"}</span>
+                    <span>{imgError ? "Image failed to load" : "No cover photo set"}</span>
+                    {imgError && <span className="text-xs max-w-[200px] truncate text-center">{value}</span>}
                     <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
                     <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={uploading}
                         className="mt-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium"
                     >
-                        {uploading ? "Uploading..." : "Upload Cover Photo"}
+                        {uploading ? "Uploading..." : (imgError ? "Try Uploading Again" : "Upload Cover Photo")}
                     </button>
                 </div>
             )}
@@ -247,19 +305,54 @@ function EditableGallery({
             const file = e.target.files[0];
             setUploading(true);
             try {
-                const formData = new FormData();
-                formData.append('file', file);
-                const res = await fetch(uploadEndpoint, { method: 'POST', body: formData });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.url) {
-                        // Append to end
-                        const newPhotos = [...photos, data.url];
-                        await onSave(newPhotos);
+                // Determine category from uploadEndpoint
+                const categoryMatch = uploadEndpoint.match(/category=([^&]+)/);
+                const category = categoryMatch ? categoryMatch[1] : 'cafe_photo';
+
+                // Extract base API URL
+                const baseURL = uploadEndpoint.split('/cafes')[0];
+
+                // Step 1: Get presigned URL from backend
+                const presignedRes = await fetch(`${baseURL}/upload/presigned-url`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        filename: file.name,
+                        file_type: file.type,
+                        category: category
+                    })
+                });
+
+                if (!presignedRes.ok) {
+                    alert("Failed to get upload URL");
+                    return;
+                }
+
+                const { upload_url, file_url } = await presignedRes.json();
+
+                // Step 2: Upload directly to S3 using presigned URL
+                const uploadRes = await fetch(upload_url, {
+                    method: 'PUT',
+                    body: file,
+                    headers: {
+                        'Content-Type': file.type
                     }
-                } else alert("Upload failed");
-            } catch (err) { console.error(err); alert("Upload error"); }
-            finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ""; }
+                });
+
+                if (uploadRes.ok) {
+                    // Append to end
+                    const newPhotos = [...photos, file_url];
+                    await onSave(newPhotos);
+                } else {
+                    alert("Upload failed");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Upload error");
+            } finally {
+                setUploading(false);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+            }
         }
     };
 
@@ -290,22 +383,40 @@ function EditableGallery({
 
             {photos.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {photos.map((url, i) => (
-                        <div key={i} className="relative aspect-square rounded-xl overflow-hidden group bg-gray-100">
-                            <img src={url} className="w-full h-full object-cover" />
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-                            <button
-                                onClick={() => handleDelete(i)}
-                                className="absolute top-2 right-2 bg-destructive text-destructive-foreground w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive shadow-sm"
-                            >
-                                ×
-                            </button>
-                        </div>
-                    ))}
+                    {photos.map((rawUrl, i) => {
+                        const url = cleanUrl(rawUrl);
+                        return (
+                            <div key={i} className="relative aspect-square rounded-xl overflow-hidden group bg-gray-100 border border-border">
+                                <img
+                                    src={url}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                        console.warn("Gallery photo failed to load:", url);
+                                        e.currentTarget.style.display = 'none';
+                                        e.currentTarget.parentElement?.classList.add('flex', 'items-center', 'justify-center', 'bg-muted');
+                                        const fallback = document.createElement('span');
+                                        fallback.textContent = '⚠️ Error';
+                                        fallback.className = 'text-xs text-destructive font-bold';
+                                        e.currentTarget.parentElement?.appendChild(fallback);
+                                    }}
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                                <button
+                                    onClick={() => handleDelete(i)}
+                                    className="absolute top-2 right-2 bg-destructive text-destructive-foreground w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive shadow-sm"
+                                >
+                                    ×
+                                </button>
+                                <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] p-1 truncate opacity-0 group-hover:opacity-100 hidden group-hover:block">
+                                    {url.split('/').pop()}
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             ) : (
                 <div className="p-8 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-muted-foreground/60 gap-2">
-                    <span className="text-2xl">🖼️</span>
+                    <ImageIcon className="w-8 h-8 opacity-50" />
                     <span className="text-sm">No gallery photos yet</span>
                 </div>
             )}
@@ -579,7 +690,9 @@ export default function CafeProfilePage() {
                                             <h3 className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest">Get in Touch</h3>
 
                                             <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group">
-                                                <span className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">🌐</span>
+                                                <div className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                                                    <LinkIcon className="w-4 h-4" />
+                                                </div>
                                                 <div className="flex-1 min-w-0">
                                                     <EditableText
                                                         value={cafe.website_link}
@@ -591,7 +704,9 @@ export default function CafeProfilePage() {
                                             </div>
 
                                             <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group">
-                                                <span className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">📸</span>
+                                                <div className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                                                    <Instagram className="w-4 h-4" />
+                                                </div>
                                                 <div className="flex-1 min-w-0">
                                                     <EditableText
                                                         value={cafe.instagram_url}
@@ -603,7 +718,9 @@ export default function CafeProfilePage() {
                                             </div>
 
                                             <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group">
-                                                <span className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">📞</span>
+                                                <div className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                                                    <Phone className="w-4 h-4" />
+                                                </div>
                                                 <div className="flex-1 min-w-0">
                                                     <EditableText
                                                         value={cafe.phone_number}
@@ -615,7 +732,9 @@ export default function CafeProfilePage() {
                                             </div>
 
                                             <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group">
-                                                <span className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">📋</span>
+                                                <div className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                                                    <Utensils className="w-4 h-4" />
+                                                </div>
                                                 <div className="flex-1 min-w-0">
                                                     <EditableText
                                                         value={cafe.menu_link}

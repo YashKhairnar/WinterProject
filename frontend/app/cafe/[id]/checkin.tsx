@@ -251,7 +251,7 @@ export default function CheckIn() {
             // 3. Submit metadata to Backend
             const payload = {
                 cafe_id: cafeId,
-                user_id: userId,
+                user_sub: userId,
                 vibe: answers.vibe,
                 visit_purpose: answers.visit_purpose,
                 image_url: file_url

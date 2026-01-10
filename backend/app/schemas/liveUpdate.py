@@ -7,7 +7,7 @@ from uuid import UUID
 # Base model for live updates
 class LiveUpdate(BaseModel):
     cafe_id: str
-    user_id: str
+    user_sub: str
     image_url: str
     vibe: Optional[str] = None
     visit_purpose: Optional[str] = None
@@ -15,7 +15,7 @@ class LiveUpdate(BaseModel):
 
 class LiveUpdateCreate(BaseModel):
     cafe_id: str
-    user_id: str
+    user_sub: str
     vibe: Optional[str] = None
     visit_purpose: Optional[str] = None
     image_url: str
@@ -25,7 +25,7 @@ class LiveUpdateCreate(BaseModel):
 class LiveUpdatePublic(BaseModel):
     id: UUID
     cafe_id: UUID
-    user_id: UUID
+    user_sub: str
     image_url: str
     vibe: Optional[str] = None
     visit_purpose: Optional[str] = None

@@ -76,6 +76,9 @@ export default function CafeProfile() {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedTime, setSelectedTime] = useState('10:00 AM');
     const [partySize, setPartySize] = useState(2);
+    const [successModalVisible, setSuccessModalVisible] = useState(false);
+    const [cancelModalVisible, setCancelModalVisible] = useState(false);
+    const [confirmCancelModalVisible, setConfirmCancelModalVisible] = useState(false);
 
     const timeSlots = ['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'];
     const dates = [new Date(), new Date(Date.now() + 86400000), new Date(Date.now() + 172800000)]; // Today, Tomorrow, Day After
@@ -504,26 +507,24 @@ export default function CafeProfile() {
         );
     };
 
+    const handleConfirmCancel = async () => {
+        const currentRes = getReservation(cafeId);
+        if (!currentRes?.id) return;
+
+        try {
+            await cancelReservation(currentRes.id);
+            setConfirmCancelModalVisible(false);
+            setTimeout(() => setCancelModalVisible(true), 300); // Slight delay for smooth transition
+        } catch (error: any) {
+            setConfirmCancelModalVisible(false);
+            Alert.alert("Error", error.message || "Failed to cancel reservation");
+        }
+    };
+
     const handleReservePress = () => {
         const currentRes = getReservation(cafeId);
         if (currentRes && currentRes.id) {
-            Alert.alert(
-                "Cancel Reservation?",
-                "Are you sure you want to cancel your table?",
-                [
-                    { text: "No", style: "cancel" },
-                    {
-                        text: "Yes", onPress: async () => {
-                            try {
-                                await cancelReservation(currentRes.id!);
-                                Alert.alert("Success", "Reservation Cancelled");
-                            } catch (error: any) {
-                                Alert.alert("Error", error.message || "Failed to cancel reservation");
-                            }
-                        }, style: 'destructive'
-                    }
-                ]
-            );
+            setConfirmCancelModalVisible(true);
         } else {
             setModalVisible(true);
         }
@@ -538,7 +539,9 @@ export default function CafeProfile() {
                 partySize
             });
             setModalVisible(false);
-            Alert.alert("Table Reserved!", `Your table for ${partySize} at ${selectedTime} is confirmed.`);
+            setModalVisible(false);
+            // Alert.alert("Table Reserved!", `Your table for ${partySize} at ${selectedTime} is confirmed.`);
+            setSuccessModalVisible(true);
         } catch (error: any) {
             Alert.alert("Error", error.message || "Failed to reserve table. Please try again.");
         }
@@ -1207,22 +1210,53 @@ export default function CafeProfile() {
                                             setUploading(true);
                                             try {
                                                 const user = await import('aws-amplify/auth').then(m => m.fetchUserAttributes());
+                                                const apiUrl = process.env.EXPO_PUBLIC_API_URL || '';
+                                                const cleanURL = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
 
-                                                const formData = new FormData();
-                                                formData.append('cafe_id', cafeId);
-                                                formData.append('user_id', user.sub || '');
-
+                                                // 1. Get Pre-signed URL
                                                 const filename = capturedPhoto.split('/').pop() || 'photo.jpg';
-                                                formData.append('photo', {
-                                                    uri: capturedPhoto,
-                                                    type: 'image/jpeg',
-                                                    name: filename,
-                                                } as any);
-
-                                                const API_URL = process.env.EXPO_PUBLIC_API_URL;
-                                                const response = await fetch(`${API_URL}/liveUpdates`, {
+                                                const presignedResponse = await fetch(`${cleanURL}/upload/presigned-url`, {
                                                     method: 'POST',
-                                                    body: formData,
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        filename,
+                                                        file_type: 'image/jpeg',
+                                                        category: 'live_update'
+                                                    })
+                                                });
+
+                                                if (!presignedResponse.ok) {
+                                                    const error = await presignedResponse.text();
+                                                    throw new Error(`Failed to get upload URL: ${error}`);
+                                                }
+
+                                                const { upload_url, file_url } = await presignedResponse.json();
+
+                                                // 2. Upload to S3
+                                                const photoData = await fetch(capturedPhoto);
+                                                const blob = await photoData.blob();
+
+                                                const s3Response = await fetch(upload_url, {
+                                                    method: 'PUT',
+                                                    body: blob,
+                                                    headers: { 'Content-Type': 'image/jpeg' }
+                                                });
+
+                                                if (!s3Response.ok) {
+                                                    throw new Error('Failed to upload image to S3');
+                                                }
+
+                                                // 3. Submit metadata to Backend
+                                                const payload = {
+                                                    cafe_id: cafeId,
+                                                    user_sub: user.sub || '',
+                                                    image_url: file_url
+                                                };
+
+                                                const response = await fetch(`${cleanURL}/liveUpdates/direct`, {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify(payload),
                                                 });
 
                                                 if (response.ok) {
@@ -1232,12 +1266,12 @@ export default function CafeProfile() {
                                                     // Refresh stories
                                                     fetchLiveUpdates();
                                                 } else {
-                                                    const error = await response.text();
-                                                    Alert.alert('Error', `Failed to upload: ${error}`);
+                                                    const errorData = await response.json();
+                                                    Alert.alert('Error', errorData.detail || "Failed to save story");
                                                 }
-                                            } catch (error) {
+                                            } catch (error: any) {
                                                 console.error('Upload error:', error);
-                                                Alert.alert('Error', 'Failed to upload story');
+                                                Alert.alert('Error', error.message || 'Failed to upload story');
                                             } finally {
                                                 setUploading(false);
                                             }
@@ -1471,6 +1505,94 @@ export default function CafeProfile() {
                     )}
                 </View>
             </View>
+            {/* Success Modal */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={successModalVisible}
+                onRequestClose={() => setSuccessModalVisible(false)}
+            >
+                <View style={styles.successModalOverlay}>
+                    <View style={styles.successModalCard}>
+                        <View style={styles.successIconBubble}>
+                            <AntDesign name="check" size={40} color={Colors.white} />
+                        </View>
+                        <Text style={styles.successTitle}>Reservation Requested!</Text>
+                        <Text style={styles.successMessage}>
+                            You have requested a reservation for <Text style={{ fontFamily: 'Outfit_700Bold' }}>{partySize} people</Text> at <Text style={{ fontFamily: 'Outfit_700Bold' }}>{selectedTime}</Text>. Please check your email for confirmation.
+                        </Text>
+                        <Pressable
+                            style={styles.successButton}
+                            onPress={() => {
+                                setSuccessModalVisible(false);
+                                router.push(`/reservations`);
+                            }}
+                        >
+                            <Text style={styles.successButtonText}>check Status</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Confirm Cancel Modal */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={confirmCancelModalVisible}
+                onRequestClose={() => setConfirmCancelModalVisible(false)}
+            >
+                <View style={styles.successModalOverlay}>
+                    <View style={styles.successModalCard}>
+                        <View style={[styles.successIconBubble, { backgroundColor: Colors.error }]}>
+                            <Feather name="alert-circle" size={40} color={Colors.white} />
+                        </View>
+                        <Text style={styles.successTitle}>Cancel Reservation?</Text>
+                        <Text style={styles.successMessage}>
+                            Are you sure you want to cancel your table? This action cannot be undone.
+                        </Text>
+                        <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+                            <Pressable
+                                style={[styles.successButton, { flex: 1, backgroundColor: Colors.borderLight }]}
+                                onPress={() => setConfirmCancelModalVisible(false)}
+                            >
+                                <Text style={[styles.successButtonText, { color: Colors.textPrimary }]}>No</Text>
+                            </Pressable>
+                            <Pressable
+                                style={[styles.successButton, { flex: 1, backgroundColor: Colors.error }]}
+                                onPress={handleConfirmCancel}
+                            >
+                                <Text style={styles.successButtonText}>Yes</Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Cancel Success Modal */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={cancelModalVisible}
+                onRequestClose={() => setCancelModalVisible(false)}
+            >
+                <View style={styles.successModalOverlay}>
+                    <View style={styles.successModalCard}>
+                        <View style={styles.successIconBubble}>
+                            <AntDesign name="check" size={40} color={Colors.white} />
+                        </View>
+                        <Text style={styles.successTitle}>Reservation Cancelled</Text>
+                        <Text style={styles.successMessage}>
+                            Your reservation has been cancelled. We hope to see you another time!
+                        </Text>
+                        <Pressable
+                            style={styles.successButton}
+                            onPress={() => setCancelModalVisible(false)}
+                        >
+                            <Text style={styles.successButtonText}>Close</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </Modal>
         </View >
     );
 }
@@ -1977,10 +2099,71 @@ const styles = StyleSheet.create({
         height: '100%',
         borderRadius: 30,
     },
+    successModalCard: {
+        backgroundColor: Colors.white,
+        width: '85%',
+        borderRadius: 24,
+        paddingVertical: 32,
+        paddingHorizontal: 24,
+        alignItems: 'center',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 10,
+    },
+    successIconBubble: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: Colors.success,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 20,
+        shadowColor: Colors.success,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    successTitle: {
+        fontSize: 24,
+        fontFamily: 'Outfit_700Bold',
+        color: Colors.textPrimary,
+        marginBottom: 10,
+        textAlign: 'center',
+    },
+    successMessage: {
+        fontSize: 16,
+        fontFamily: 'Outfit_400Regular',
+        color: Colors.textSecondary,
+        textAlign: 'center',
+        marginBottom: 24,
+        lineHeight: 22,
+    },
+    successButton: {
+        backgroundColor: Colors.primary,
+        paddingVertical: 16,
+        paddingHorizontal: 32,
+        borderRadius: 16,
+        width: '100%',
+        alignItems: 'center',
+    },
+    successButtonText: {
+        color: Colors.white,
+        fontSize: 16,
+        fontFamily: 'Outfit_700Bold',
+    },
     modalOverlay: {
         flex: 1,
         backgroundColor: Colors.black + '80', // 50% opacity
         justifyContent: 'flex-end',
+    },
+    successModalOverlay: {
+        flex: 1,
+        backgroundColor: Colors.black + '80', // 50% opacity
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     modalContent: {
         backgroundColor: Colors.white,

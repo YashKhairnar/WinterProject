@@ -165,6 +165,14 @@ def update_cafe(cafe_id: UUID, cafe_update: CafeUpdate, db: Session = Depends(ge
 
     update_data = cafe_update.dict(exclude_unset=True)
     for key, value in update_data.items():
+        # Sanitize photo URLs to remove accidental quotes
+        if key == 'cover_photo' and isinstance(value, str):
+            value = value.replace('"', '').replace("'", "").strip()
+            update_data[key] = value
+        elif key in ['cafe_photos', 'menu_photos'] and isinstance(value, list):
+            value = [v.replace('"', '').replace("'", "").strip() for v in value]
+            update_data[key] = value
+
         if key == 'table_config' and value is not None:
             # Handle List[TableConfigItem] (Map View)
             if isinstance(value, list):

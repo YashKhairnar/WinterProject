@@ -455,7 +455,7 @@ export default function Profile() {
                             <Text style={styles.seeAll}>See All</Text>
                         </Pressable>
                     </View>
-                    {reservations.filter(r => r.status === 'completed' || r.status === 'cancelled').length === 0 ? (
+                    {reservations.filter(r => r.status === 'completed' || r.status === 'cancelled' || r.status === 'pending').length === 0 ? (
                         <Text style={styles.emptyText}>No past reservations.</Text>
                     ) : (
                         reservations
@@ -494,34 +494,35 @@ export default function Profile() {
                     )}
                 </View>
 
-                {/* Logout Button */}
-                <Pressable style={styles.logoutBtn} onPress={async () => {
-                    try {
-                        await signOut();
-                        router.replace('/auth/login');
-                    } catch (error) {
-                        console.error("Error signing out: ", error);
-                    }
-                }}>
-                    <Feather name="log-out" size={20} color={Colors.textSecondary} />
-                    <Text style={styles.logoutText}>Log Out</Text>
-                </Pressable>
+                {/* Action Buttons */}
+                <View style={styles.actionSection}>
+                    <Pressable style={styles.logoutBtn} onPress={async () => {
+                        try {
+                            await signOut();
+                            router.replace('/auth/login');
+                        } catch (error) {
+                            console.error("Error signing out: ", error);
+                        }
+                    }}>
+                        <Feather name="log-out" size={20} color={Colors.white} />
+                        <Text style={styles.logoutText}>Log Out</Text>
+                    </Pressable>
 
-                <Pressable
-                    style={styles.deleteAccountBtn}
-                    onPress={() => setDeleteModalVisible(true)}
-                >
-                    <Feather name="trash-2" size={18} color={Colors.textSecondary} />
-                    <Text style={styles.deleteAccountText}>Delete Account</Text>
-                </Pressable>
+                    <Pressable
+                        style={styles.deleteAccountBtn}
+                        onPress={() => setDeleteModalVisible(true)}
+                    >
+                        <Feather name="trash-2" size={18} color={Colors.white} />
+                        <Text style={styles.deleteAccountText}>Delete Account</Text>
+                    </Pressable>
 
-                <Pressable
-                    style={[styles.deleteAccountBtn, { marginTop: 0, marginBottom: 60 }]}
-                    onPress={() => router.push("/privacy")}
-                >
-                    <Feather name="shield" size={18} color={Colors.textSecondary} />
-                    <Text style={styles.deleteAccountText}>Privacy Policy</Text>
-                </Pressable>
+                    <Pressable
+                        style={styles.privacyLink}
+                        onPress={() => router.push("/privacy")}
+                    >
+                        <Text style={styles.privacyLinkText}>Privacy Policy</Text>
+                    </Pressable>
+                </View>
 
             </ScrollView>
 
@@ -942,42 +943,52 @@ const styles = StyleSheet.create({
         fontStyle: 'italic',
         marginTop: 8,
     },
+    actionSection: {
+        marginTop: 40,
+        paddingHorizontal: 24,
+        gap: 12,
+        paddingBottom: 60,
+    },
     logoutBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        marginTop: 40,
         paddingVertical: 16,
-        marginHorizontal: 24,
-        backgroundColor: Colors.borderLight + '50',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: Colors.borderLight,
+        backgroundColor: Colors.primary,
+        borderRadius: 16,
+        ...Shadows.small,
     },
     logoutText: {
         fontSize: 16,
-        fontWeight: '600',
-        color: Colors.textSecondary,
+        fontWeight: '700',
+        color: Colors.white,
     },
     deleteAccountBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        marginTop: 10,
-        marginBottom: 40,
         paddingVertical: 16,
-        marginHorizontal: 24,
-        backgroundColor: Colors.borderLight + '20',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: Colors.borderLight + '50',
+        backgroundColor: Colors.error,
+        borderRadius: 16,
+        ...Shadows.small,
     },
     deleteAccountText: {
-        fontSize: 15,
-        fontWeight: '600',
+        fontSize: 16,
+        fontWeight: '700',
+        color: Colors.white,
+    },
+    privacyLink: {
+        marginTop: 20,
+        alignItems: 'center',
+        paddingVertical: 10,
+    },
+    privacyLinkText: {
+        fontSize: 14,
         color: Colors.textSecondary,
+        textDecorationLine: 'underline',
+        fontWeight: '500',
     },
     modalContainer: {
         flex: 1,

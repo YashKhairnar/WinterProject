@@ -19,14 +19,13 @@ def create_live_update_direct(
     Create a new live update using a pre-uploaded image URL.
     """
     try:
-        # Validate UUIDs
+        # Validate Cafe UUID
         cafe_uuid = UUID(payload.cafe_id)
-        user_uuid = UUID(payload.user_id)
         
         # Create live update in database
         live_update = LiveUpdates(
             cafe_id=cafe_uuid,
-            user_id=user_uuid,
+            user_sub=payload.user_sub,
             image_url=payload.image_url,
             vibe=payload.vibe,
             visit_purpose=payload.visit_purpose
@@ -39,7 +38,7 @@ def create_live_update_direct(
         return live_update
     
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid UUID format: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid Cafe ID format: {str(e)}")
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error creating live update: {str(e)}")
@@ -49,7 +48,7 @@ def create_live_update_direct(
 @liveUpdates_router.post('', response_model=LiveUpdatePublic, status_code=201)
 async def create_live_update(
     cafe_id: str = Form(...),
-    user_id: str = Form(...),
+    user_sub: str = Form(...),
     photo: UploadFile = File(...),
     vibe: Optional[str] = Form(None),
     visit_purpose: Optional[str] = Form(None),
@@ -61,9 +60,8 @@ async def create_live_update(
     Live updates expire after 24 hours.
     """
     try:
-        # Validate UUIDs
+        # Validate Cafe UUID
         cafe_uuid = UUID(cafe_id)
-        user_uuid = UUID(user_id)
         
         # Upload photo to S3
         if not photo.filename:
@@ -76,7 +74,7 @@ async def create_live_update(
         # Create live update in database
         live_update = LiveUpdates(
             cafe_id=cafe_uuid,
-            user_id=user_uuid,
+            user_sub=user_sub,
             image_url=image_url,
             vibe=vibe,
             visit_purpose=visit_purpose
@@ -89,7 +87,7 @@ async def create_live_update(
         return live_update
     
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid UUID format: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid Cafe ID format: {str(e)}")
     except Exception as e:
         db.rollback()
         import traceback
@@ -128,15 +126,10 @@ async def get_user_live_updates(
     """
     from datetime import datetime, timezone
     
-    try:
-        user_uuid = UUID(cognito_sub)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid user ID format")
-
     # Query LiveUpdates joined with Cafe
-    # Note: LiveUpdates.user_id stores the cognito_sub (as UUID) directly
+    # Note: LiveUpdates.user_sub stores the cognito_sub directly
     results = db.query(LiveUpdates, Cafe.name).join(Cafe, LiveUpdates.cafe_id == Cafe.id).filter(
-        LiveUpdates.user_id == user_uuid,
+        LiveUpdates.user_sub == cognito_sub,
         LiveUpdates.expires_at > datetime.now(timezone.utc)
     ).order_by(LiveUpdates.created_at.desc()).all()
     

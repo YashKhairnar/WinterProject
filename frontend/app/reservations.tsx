@@ -12,6 +12,7 @@ export default function ReservationsPage() {
     const insets = useSafeAreaInsets();
     const { reservations } = useReservation();
 
+    const activeReservations = reservations.filter(r => r.status === 'pending' || r.status === 'confirmed');
     const pastReservations = reservations.filter(r => r.status === 'completed' || r.status === 'cancelled');
 
     return (
@@ -29,60 +30,110 @@ export default function ReservationsPage() {
             </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                {pastReservations.length === 0 ? (
-                    <View style={styles.emptyState}>
-                        <Feather name="calendar" size={48} color={Colors.textSecondary} />
-                        <Text style={styles.emptyTitle}>No Past Reservations</Text>
-                        <Text style={styles.emptyText}>Your completed and cancelled reservations will appear here.</Text>
-                    </View>
-                ) : (
-                    pastReservations.map((reservation) => (
-                        <Pressable
-                            key={reservation.id}
-                            style={styles.reservationCard}
-                            onPress={() => router.push(`/cafe/${reservation.cafeId}` as any)}
-                        >
-                            <View style={styles.cardHeader}>
-                                <Text style={styles.cafeName}>{reservation.cafeName || 'Cafe'}</Text>
-                                <View style={[
-                                    styles.statusBadge,
-                                    reservation.status === 'completed' ? styles.completedBadge : styles.cancelledBadge
-                                ]}>
-                                    <Text style={[
-                                        styles.statusText,
-                                        reservation.status === 'completed' ? styles.completedText : styles.cancelledText
+                {activeReservations.length > 0 && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Upcoming</Text>
+                        {activeReservations.map((reservation) => (
+                            <Pressable
+                                key={reservation.id}
+                                style={styles.reservationCard}
+                                onPress={() => router.push(`/cafe/${reservation.cafeId}` as any)}
+                            >
+                                <View style={styles.cardHeader}>
+                                    <Text style={styles.cafeName}>{reservation.cafeName || 'Cafe'}</Text>
+                                    <View style={[
+                                        styles.statusBadge,
+                                        reservation.status === 'confirmed' ? styles.confirmedBadge : styles.pendingBadge
                                     ]}>
-                                        {reservation.status === 'completed' ? 'Completed' : 'Cancelled'}
+                                        <Text style={[
+                                            styles.statusText,
+                                            reservation.status === 'confirmed' ? styles.confirmedText : styles.pendingText
+                                        ]}>
+                                            {reservation.status}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.detailsRow}>
+                                    <Feather name="calendar" size={14} color={Colors.textSecondary} />
+                                    <Text style={styles.detailText}>
+                                        {reservation.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                     </Text>
                                 </View>
-                            </View>
 
-                            <View style={styles.detailsRow}>
-                                <Feather name="calendar" size={14} color={Colors.textSecondary} />
-                                <Text style={styles.detailText}>
-                                    {reservation.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                </Text>
-                            </View>
-
-                            <View style={styles.detailsRow}>
-                                <Feather name="clock" size={14} color={Colors.textSecondary} />
-                                <Text style={styles.detailText}>{reservation.time}</Text>
-                            </View>
-
-                            <View style={styles.detailsRow}>
-                                <Feather name="users" size={14} color={Colors.textSecondary} />
-                                <Text style={styles.detailText}>{reservation.partySize} people</Text>
-                            </View>
-
-                            {reservation.status === 'cancelled' && reservation.cancellation_reason && (
-                                <View style={styles.reasonContainer}>
-                                    <Text style={styles.reasonLabel}>Cancellation Reason:</Text>
-                                    <Text style={styles.reasonText}>{reservation.cancellation_reason}</Text>
+                                <View style={styles.detailsRow}>
+                                    <Feather name="clock" size={14} color={Colors.textSecondary} />
+                                    <Text style={styles.detailText}>{reservation.time}</Text>
                                 </View>
-                            )}
-                        </Pressable>
-                    ))
+
+                                <View style={styles.detailsRow}>
+                                    <Feather name="users" size={14} color={Colors.textSecondary} />
+                                    <Text style={styles.detailText}>{reservation.partySize} people</Text>
+                                </View>
+                            </Pressable>
+                        ))}
+                    </View>
                 )}
+
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>History</Text>
+                    {pastReservations.length === 0 ? (
+                        <View style={styles.emptyState}>
+                            <Feather name="calendar" size={48} color={Colors.textSecondary} />
+                            <Text style={styles.emptyTitle}>No Past Reservations</Text>
+                            <Text style={styles.emptyText}>Your completed and cancelled reservations will appear here.</Text>
+                        </View>
+                    ) : (
+                        pastReservations.map((reservation) => (
+                            <Pressable
+                                key={reservation.id}
+                                style={styles.reservationCard}
+                                onPress={() => router.push(`/cafe/${reservation.cafeId}` as any)}
+                            >
+                                <View style={styles.cardHeader}>
+                                    <Text style={styles.cafeName}>{reservation.cafeName || 'Cafe'}</Text>
+                                    <View style={[
+                                        styles.statusBadge,
+                                        reservation.status === 'completed' ? styles.completedBadge : styles.cancelledBadge
+                                    ]}>
+                                        <Text style={[
+                                            styles.statusText,
+                                            reservation.status === 'completed' ? styles.completedText : styles.cancelledText
+                                        ]}>
+                                            {reservation.status === 'completed'
+                                                ? 'Completed'
+                                                : (reservation.cancellation_reason ? 'Cancelled (Cafe)' : 'Cancelled (You)')}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.detailsRow}>
+                                    <Feather name="calendar" size={14} color={Colors.textSecondary} />
+                                    <Text style={styles.detailText}>
+                                        {reservation.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </Text>
+                                </View>
+
+                                <View style={styles.detailsRow}>
+                                    <Feather name="clock" size={14} color={Colors.textSecondary} />
+                                    <Text style={styles.detailText}>{reservation.time}</Text>
+                                </View>
+
+                                <View style={styles.detailsRow}>
+                                    <Feather name="users" size={14} color={Colors.textSecondary} />
+                                    <Text style={styles.detailText}>{reservation.partySize} people</Text>
+                                </View>
+
+                                {reservation.status === 'cancelled' && reservation.cancellation_reason && (
+                                    <View style={styles.reasonContainer}>
+                                        <Text style={styles.reasonLabel}>Cancellation Reason:</Text>
+                                        <Text style={styles.reasonText}>{reservation.cancellation_reason}</Text>
+                                    </View>
+                                )}
+                            </Pressable>
+                        ))
+                    )}
+                </View>
             </ScrollView>
         </View>
     );
@@ -173,6 +224,28 @@ const styles = StyleSheet.create({
     },
     cancelledText: {
         color: Colors.error,
+    },
+    confirmedBadge: {
+        backgroundColor: Colors.success + '15',
+    },
+    confirmedText: {
+        color: Colors.success,
+    },
+    pendingBadge: {
+        backgroundColor: Colors.cta + '15',
+    },
+    pendingText: {
+        color: Colors.cta,
+    },
+    section: {
+        marginBottom: 24,
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: Colors.textPrimary,
+        marginBottom: 12,
+        marginLeft: 4,
     },
     detailsRow: {
         flexDirection: 'row',
