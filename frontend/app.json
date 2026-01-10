@@ -8,8 +8,8 @@
     "scheme": "nook",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "updates" : {
-      "url" :  "https://u.expo.dev/84ee200f-4599-4f94-a98d-429701d7f1de"
+    "updates": {
+      "url": "https://u.expo.dev/84ee200f-4599-4f94-a98d-429701d7f1de"
     },
     "runtimeVersion": {
       "policy": "appVersion"
@@ -33,7 +33,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.yashk11.nook",
-      "versionCode": 3,
+      "versionCode": 5,
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyAhfHQpsnekTMdLgkY9djA_toF9vJwP1Ic"
